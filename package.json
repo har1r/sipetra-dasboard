@@ -1,5 +1,5 @@
 {
-  "name": "orcish-dashboard",
+  "name": "sipetra-dashboard",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -25,31 +25,32 @@
     "@radix-ui/react-toggle": "^1.1.10",
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "@tabler/icons-react": "^3.36.0",
+    "@tabler/icons-react": "^3.41.1",
     "@tanstack/react-table": "^8.21.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.562.0",
     "next": "16.1.1",
     "next-themes": "^0.4.6",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "recharts": "^3.6.0",
+    "radix-ui": "^1.4.3",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "recharts": "^3.8.1",
     "sonner": "^2.0.7",
-    "tailwind-merge": "^3.4.0",
+    "tailwind-merge": "^3.5.0",
     "tw-animate-css": "^1.4.0",
     "vaul": "^1.1.2",
-    "zod": "^4.3.2"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.3",
-    "@tailwindcss/postcss": "^4.1.18",
-    "@types/node": "^25.0.3",
-    "@types/react": "^19.2.7",
+    "@eslint/eslintrc": "^3.3.5",
+    "@tailwindcss/postcss": "^4.2.2",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "eslint": "^9.39.2",
+    "eslint": "^9.39.4",
     "eslint-config-next": "16.1.1",
-    "tailwindcss": "^4.1.18",
+    "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3"
   }
 }

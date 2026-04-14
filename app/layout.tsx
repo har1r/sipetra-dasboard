@@ -29,7 +29,7 @@ export default async function RootLayout({
         className={cn(
           "bg-background overscroll-none font-sans antialiased",
           activeThemeValue ? `theme-${activeThemeValue}` : "",
-          isScaled ? "theme-scaled" : ""
+          isScaled ? "theme-scaled" : "",
         )}
       >
         <ThemeProvider
