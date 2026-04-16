@@ -1,3 +1,4 @@
+import { UserButton } from "@clerk/nextjs";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeSelector } from "./theme-selector";
@@ -16,6 +17,7 @@ export function SiteHeader() {
         <div className="ml-auto flex items-center gap-2">
           <ThemeSelector />
           <ModeSwitcher />
+          <UserButton />
         </div>
       </div>
     </header>

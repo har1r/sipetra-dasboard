@@ -3,6 +3,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
+html,
+body,
+#root {
+  height: 100%;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -225,4 +231,29 @@ body {
   [data-slot="toggle-group-item"] {
     @apply !rounded-none !shadow-none;
   }
+}
+
+/* Menargetkan tombol utama Clerk secara global */
+.cl-formButtonPrimary {
+  background-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  border-radius: var(--radius) !important;
+  transition: all 0.2s ease;
+}
+
+.cl-formButtonPrimary:hover {
+  filter: brightness(0.9);
+}
+
+/* Menyesuaikan border input agar senada dengan theme SIPETRA */
+.cl-formFieldInput {
+  border-color: var(--border) !important;
+  background-color: transparent !important;
+  color: var(--foreground) !important;
+}
+
+/* Memastikan background card mengikuti tema */
+.cl-card {
+  background-color: var(--card) !important;
+  border: 1px solid var(--border) !important;
 }
