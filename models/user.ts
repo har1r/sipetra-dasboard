@@ -46,7 +46,14 @@ const userSchema = new Schema<IUser>(
     },
     role: {
       type: String,
-      enum: ["admin", "penginput", "peneliti", "pemeriksa"],
+      enum: [
+        "admin",
+        "penginput",
+        "peneliti",
+        "pengarsip",
+        "pengirim",
+        "pemeriksa",
+      ],
       default: "penginput",
       required: true,
     },

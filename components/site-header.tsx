@@ -1,4 +1,4 @@
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, ClerkLoading, ClerkLoaded } from "@clerk/nextjs";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeSelector } from "./theme-selector";
@@ -17,7 +17,12 @@ export function SiteHeader() {
         <div className="ml-auto flex items-center gap-2">
           <ThemeSelector />
           <ModeSwitcher />
-          <UserButton />
+          <ClerkLoading>
+            <div className="size-8 animate-pulse rounded-full bg-muted" />
+          </ClerkLoading>
+          <ClerkLoaded>
+            <UserButton />
+          </ClerkLoaded>
         </div>
       </div>
     </header>
