@@ -7,8 +7,10 @@ import { cn } from "@/lib/utils";
 
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { ActiveThemeProvider } from "@/components/active-theme";
+import { AudioProvider } from "@/components/providers/audio-provider";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "Sipetra Dashboard",
@@ -50,9 +52,10 @@ export default async function RootLayout({
             enableColorScheme
           >
             <ActiveThemeProvider initialTheme={activeThemeValue}>
-              {children}
+              <AudioProvider>{children}</AudioProvider>
             </ActiveThemeProvider>
           </ThemeProvider>
+          <Toaster position="top-center" />
         </body>
       </html>
     </ClerkProvider>

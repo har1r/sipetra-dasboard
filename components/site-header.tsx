@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeSelector } from "./theme-selector";
 import { ModeSwitcher } from "./mode-switcher";
+import PlaylistToday from "./playlistToday";
 
 export function SiteHeader() {
   const [isMounted, setIsMounted] = React.useState(false);
@@ -22,7 +23,7 @@ export function SiteHeader() {
           orientation="vertical"
           className="mx-2 data-[orientation=vertical]:h-4"
         />
-        <h1 className="text-base font-medium">Documents</h1>
+        <PlaylistToday />
         <div className="ml-auto flex items-center gap-2">
           <ThemeSelector />
           <ModeSwitcher />
