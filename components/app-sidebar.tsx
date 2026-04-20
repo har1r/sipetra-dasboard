@@ -57,7 +57,7 @@ const data = {
     },
     {
       title: "Projects",
-      url: "#",
+      url: "/projects",
       icon: IconFolder,
     },
     {

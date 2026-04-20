@@ -100,15 +100,123 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FileText, User, LinkIcon } from "lucide-react";
 
-import { updateUserDetails } from "@/lib/actions/user-actions";
+import TableCellViewer from "./tableCellViewer";
 
-export const schema = z.object({
+/* =========================
+   ENUMS
+========================= */
+const statusEnum = z.enum(["in_progress", "approved", "revised", "rejected"]);
+
+const stageEnum = z.enum([
+  "penginputan",
+  "penelitian",
+  "pengarsipan",
+  "pengiriman",
+  "pemeriksaan",
+]);
+
+const serviceTypeEnum = z.enum([
+  "pengaktifan",
+  "mutasi habis update",
+  "mutasi habis reguler",
+  "mutasi sebagian",
+  "pembetulan",
+  "objek pajak baru",
+]);
+
+/* =========================
+   SUB SCHEMAS
+========================= */
+
+export const taskAttachmentSchema = z.object({
+  driveLink: z.string(),
+  linkName: z.string(),
+  uploadedBy: z.string().optional(),
+  uploadedAt: z.date().nullable().optional(),
+});
+
+export const requestedDataSchema = z.object({
+  taxObjectAddress: z.string(),
+  taxObjectVillage: z.string(),
+  taxObjectSubdistrict: z.string(),
+});
+
+export const addRequestedDataSchema = z.object({
+  taxpayerName: z.string(),
+  taxpayerNameSearch: z.string().optional(),
+  taxpayerAddress: z.string(),
+  taxpayerVillage: z.string(),
+  taxpayerSubdistrict: z.string(),
+  landArea: z.number(),
+  buildingArea: z.number(),
+  certificate: z.string(),
+  status: statusEnum,
+  note: z.string().optional(),
+});
+
+export const taskApprovalSchema = z.object({
+  stageOrder: z.number(),
+  stage: stageEnum,
+  approvedBy: z.string().optional(),
+  approvedAt: z.date().nullable().optional(),
+  status: statusEnum,
+  note: z.string().optional(),
+});
+
+/* =========================
+   MAIN TASK SCHEMA
+========================= */
+
+export const taskSchema = z.object({
   _id: z.string(),
-  name: z.string(),
-  email: z.string(),
-  role: z.string(),
-  stages: z.array(z.string()),
+  serviceType: serviceTypeEnum,
+  nopel: z.string(),
+  nop: z.string(),
+
+  baseData: z.object({
+    taxpayerName: z.string(),
+    taxpayerNameSearch: z.string().optional(),
+    taxpayerAddress: z.string(),
+    taxpayerVillage: z.string(),
+    taxpayerSubdistrict: z.string(),
+    taxObjectAddress: z.string(),
+    taxObjectVillage: z.string(),
+    taxObjectSubdistrict: z.string(),
+    landArea: z.number(),
+    buildingArea: z.number(),
+  }),
+
+  requestedData: requestedDataSchema,
+  requestedChanges: z.array(addRequestedDataSchema),
+
+  dynamicFields: z.record(z.string(), z.any()),
+
+  attachments: z.array(taskAttachmentSchema),
+  approvals: z.array(taskApprovalSchema),
+
+  createdBy: z.string().optional(),
+  currentStage: stageEnum,
+  overallStatus: statusEnum,
+
+  reportId: z.string().optional(),
+
+  revisedHistories: z.array(
+    z.object({
+      revisedAct: z.string(),
+      revisedBy: z.string().optional(),
+      revisedNote: z.string(),
+      revisedAt: z.date(),
+      stageAtRevision: z.string(),
+      isResolved: z.boolean(),
+    }),
+  ),
+
+  isLocked: z.boolean(),
+
+  createdAt: z.date(),
+  updatedAt: z.date(),
 });
 
 // Create a separate component for the drag handle
@@ -131,11 +239,11 @@ function DragHandle({ id }: { id: string }) {
   );
 }
 
-const columns: ColumnDef<z.infer<typeof schema>>[] = [
+const columns: ColumnDef<z.infer<typeof taskSchema>>[] = [
   {
     id: "drag",
     header: () => null,
-    cell: ({ row }) => <DragHandle id={row.original._id} />,
+    cell: ({ row }) => <DragHandle id={row.original?._id} />,
   },
   {
     id: "select",
@@ -163,52 +271,104 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
     enableSorting: false,
     enableHiding: false,
   },
+
+  // 🔥 Nopel
   {
-    accessorKey: "name",
-    header: "Name",
+    accessorKey: "nopel",
+    header: "Nopel",
     cell: ({ row }) => {
       return <TableCellViewer item={row.original} />;
     },
     enableHiding: false,
   },
+
+  // 🔥 Service Type
   {
-    accessorKey: "email",
-    header: "Email",
+    accessorKey: "serviceType",
+    header: "Service",
     cell: ({ row }) => (
-      <div className="w-32">
-        <Badge variant="outline" className="text-muted-foreground px-1.5">
-          {row.original.email}
-        </Badge>
+      <Badge variant="outline" className="text-muted-foreground px-1.5">
+        {row.original?.serviceType}
+      </Badge>
+    ),
+  },
+
+  // 🔥 NOP
+  {
+    accessorKey: "nop",
+    header: "NOP",
+    cell: ({ row }) => (
+      <Badge variant="outline" className="text-muted-foreground px-1.5">
+        {row.original?.nop}
+      </Badge>
+    ),
+  },
+
+  // 🔥 NOPEL
+  {
+    accessorKey: "baseData?.taxpayerName",
+    header: "Old Taxpayer",
+    cell: ({ row }) => (
+      <Badge variant="outline" className="text-muted-foreground px-1.5">
+        {row.original?.baseData?.taxpayerName}
+      </Badge>
+    ),
+  },
+
+  // 🔥
+  {
+    accessorKey: "requestedChanges",
+    header: "Taxpayer",
+    cell: ({ row }) => (
+      <Badge variant="outline" className="text-muted-foreground px-1.5">
+        {row.original?.requestedChanges?.[0]?.taxpayerName}
+      </Badge>
+    ),
+  },
+
+  // 🔥 Current Stage
+  {
+    accessorKey: "currentStage",
+    header: "Stage",
+    cell: ({ row }) => (
+      <Badge variant="secondary">{row.original?.currentStage}</Badge>
+    ),
+  },
+
+  // 🔥 Overall Status
+  {
+    accessorKey: "overallStatus",
+    header: "Status",
+    cell: ({ row }) => {
+      const status = row.original?.overallStatus;
+
+      const color =
+        status === "approved"
+          ? "bg-green-500"
+          : status === "rejected"
+            ? "bg-red-500"
+            : status === "revised"
+              ? "bg-yellow-500"
+              : "bg-gray-400";
+
+      return <Badge className={`text-white ${color}`}>{status}</Badge>;
+    },
+  },
+
+  // 🔥 Created At
+  {
+    accessorKey: "createdAt",
+    header: "Created",
+    cell: ({ row }) => (
+      <div className="text-sm text-muted-foreground">
+        {new Date(row.original?.createdAt).toLocaleDateString("id-ID", {
+          timeZone: "Asia/Jakarta",
+        })}
       </div>
     ),
   },
-  {
-    accessorKey: "userId",
-    header: "UserId",
-    cell: ({ row }) => (
-        <Badge variant="outline" className="text-muted-foreground px-1.5">
-          {row.original._id}
-        </Badge>
-    ),
-  },
-  {
-    accessorKey: "role",
-    header: "Role",
-    cell: ({ row }) => (
-        <Badge variant="outline" className="text-muted-foreground px-1.5">
-          {row.original.role}
-        </Badge>
-    ),
-  },
-  {
-    accessorKey: "stages",
-    header: "Stages",
-    cell: ({ row }) => (
-        <Badge variant="outline" className="text-muted-foreground px-1.5">
-          {row.original.stages}
-        </Badge>
-    ),
-  },
+
+  // 🔥 Actions (tetap)
   {
     id: "actions",
     cell: () => (
@@ -235,9 +395,9 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
   },
 ];
 
-function DraggableRow({ row }: { row: Row<z.infer<typeof schema>> }) {
+function DraggableRow({ row }: { row: Row<z.infer<typeof taskSchema>> }) {
   const { transform, transition, setNodeRef, isDragging } = useSortable({
-    id: row.original._id,
+    id: row.original?._id,
   });
 
   return (
@@ -260,11 +420,12 @@ function DraggableRow({ row }: { row: Row<z.infer<typeof schema>> }) {
   );
 }
 
-export function UserTable({
+export function TaskTable({
   data: initialData,
 }: {
-  data: z.infer<typeof schema>[];
+  data: z.infer<typeof taskSchema>[];
 }) {
+  const [openCreate, setOpenCreate] = React.useState(false);
   const [data, setData] = React.useState(() => initialData);
 
   React.useEffect(() => {
@@ -304,7 +465,7 @@ export function UserTable({
       columnFilters,
       pagination,
     },
-    getRowId: (row) => row._id,
+    getRowId: (row) => row?._id,
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
@@ -321,10 +482,10 @@ export function UserTable({
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (active && over && active.id !== over.id) {
+    if (active && over && active?.id !== over?.id) {
       setData((data) => {
-        const oldIndex = dataIds.indexOf(active.id);
-        const newIndex = dataIds.indexOf(over.id);
+        const oldIndex = dataIds.indexOf(active?.id);
+        const newIndex = dataIds.indexOf(over?.id);
         return arrayMove(data, oldIndex, newIndex);
       });
     }
@@ -397,7 +558,11 @@ export function UserTable({
                 })}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" size="sm">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setOpenCreate(true)}
+          >
             <IconPlus />
             <span className="hidden lg:inline">Add Section</span>
           </Button>
@@ -435,13 +600,13 @@ export function UserTable({
                 ))}
               </TableHeader>
               <TableBody className="**:data-[slot=table-cell]:first:w-8">
-                {table.getRowModel().rows?.length ? (
+                {table.getRowModel().rows.length ? (
                   <SortableContext
                     items={dataIds}
                     strategy={verticalListSortingStrategy}
                   >
                     {table.getRowModel().rows.map((row) => (
-                      <DraggableRow key={row.id} row={row} />
+                      <DraggableRow key={row?.id} row={row} />
                     ))}
                   </SortableContext>
                 ) : (
@@ -551,188 +716,12 @@ export function UserTable({
       >
         <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
       </TabsContent>
+
+      <TableCellViewer
+        item={rowSelection}
+        open={openCreate}
+        onOpenChange={setOpenCreate}
+      />
     </Tabs>
-  );
-}
-
-const chartData = [
-  { month: "January", desktop: 186, mobile: 80 },
-  { month: "February", desktop: 305, mobile: 200 },
-  { month: "March", desktop: 237, mobile: 120 },
-  { month: "April", desktop: 73, mobile: 190 },
-  { month: "May", desktop: 209, mobile: 130 },
-  { month: "June", desktop: 214, mobile: 140 },
-];
-
-const chartConfig = {
-  desktop: {
-    label: "Desktop",
-    color: "var(--primary)",
-  },
-  mobile: {
-    label: "Mobile",
-    color: "var(--primary)",
-  },
-} satisfies ChartConfig;
-
-function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
-  const isMobile = useIsMobile();
-  const [open, setOpen] = React.useState(false);
-  const [selectedRole, setSelectedRole] = React.useState(item.role);
-  const [selectedStages, setSelectedStages] = React.useState<string[]>(
-    item.stages,
-  );
-
-  const handleSave = async (
-    userId: string,
-    newRole: string,
-    newStages: string[],
-  ) => {
-    const toastId = toast.loading("Sedang memperbarui data...");
-
-    const result = await updateUserDetails(userId, {
-      role: newRole,
-      stages: newStages,
-    });
-
-    if (result.success) {
-      toast.success("Berhasil diperbarui!", { id: toastId });
-      setOpen(false);
-    } else {
-      toast.error(result.message || "Gagal memperbarui", { id: toastId });
-    }
-  };
-
-  return (
-    <Drawer
-      direction={isMobile ? "bottom" : "right"}
-      open={open}
-      onOpenChange={setOpen}
-    >
-      <DrawerTrigger asChild>
-        <Button variant="link" className="text-foreground w-fit px-0 text-left">
-          {item.name}
-        </Button>
-      </DrawerTrigger>
-      <DrawerContent>
-        <DrawerHeader className="gap-1">
-          <DrawerTitle>{item.name}</DrawerTitle>
-          <DrawerDescription>
-            Showing total visitors for the last 6 months
-          </DrawerDescription>
-        </DrawerHeader>
-        <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
-          {!isMobile && (
-            <>
-              <ChartContainer config={chartConfig}>
-                <AreaChart
-                  accessibilityLayer
-                  data={chartData}
-                  margin={{
-                    left: 0,
-                    right: 10,
-                  }}
-                >
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="month"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tickFormatter={(value) => value.slice(0, 3)}
-                    hide
-                  />
-                  <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent indicator="dot" />}
-                  />
-                  <Area
-                    dataKey="mobile"
-                    type="natural"
-                    fill="var(--color-mobile)"
-                    fillOpacity={0.6}
-                    stroke="var(--color-mobile)"
-                    stackId="a"
-                  />
-                  <Area
-                    dataKey="desktop"
-                    type="natural"
-                    fill="var(--color-desktop)"
-                    fillOpacity={0.4}
-                    stroke="var(--color-desktop)"
-                    stackId="a"
-                  />
-                </AreaChart>
-              </ChartContainer>
-              <Separator />
-              <div className="grid gap-2">
-                <div className="flex gap-2 leading-none font-medium">
-                  Trending up by 5.2% this month{" "}
-                  <IconTrendingUp className="size-4" />
-                </div>
-                <div className="text-muted-foreground">
-                  Showing total visitors for the last 6 months. This is just
-                  some random text to test the layout. It spans multiple lines
-                  and should wrap around.
-                </div>
-              </div>
-              <Separator />
-            </>
-          )}
-          <form className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-3">
-                <Label htmlFor="role">Role</Label>
-                <Select
-                  defaultValue={item.role}
-                  value={selectedRole}
-                  onValueChange={setSelectedRole}
-                >
-                  <SelectTrigger id="type" className="w-full">
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="penginput">Penginput</SelectItem>
-                    <SelectItem value="peneliti">Peneliti</SelectItem>
-                    <SelectItem value="pengarsip">Pengarsip</SelectItem>
-                    <SelectItem value="pengirim">Pengirim</SelectItem>
-                    <SelectItem value="pemeriksa">Pemeriksa</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-3">
-                <Label htmlFor="stages">Stages</Label>
-                <Select
-                  defaultValue={item.stages[0]}
-                  value={selectedStages[0]}
-                  onValueChange={(val) => setSelectedStages([val])}
-                >
-                  <SelectTrigger id="status" className="w-full">
-                    <SelectValue placeholder="Select a stages" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="penginputan">Penginputan</SelectItem>
-                    <SelectItem value="penelitian">Penelitian</SelectItem>
-                    <SelectItem value="pengarsipan">Pengarsipan</SelectItem>
-                    <SelectItem value="pengiriman">Pengiriman</SelectItem>
-                    <SelectItem value="pemeriksaan">Pemeriksaan</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </form>
-        </div>
-        <DrawerFooter>
-          <Button
-            onClick={() => handleSave(item._id, selectedRole, selectedStages)}
-          >
-            Submit
-          </Button>
-          <DrawerClose asChild>
-            <Button variant="outline">Done</Button>
-          </DrawerClose>
-        </DrawerFooter>
-      </DrawerContent>
-    </Drawer>
   );
 }
