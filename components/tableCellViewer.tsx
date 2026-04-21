@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { z } from "zod";
-import { FileText, User, LinkIcon } from "lucide-react";
+import { FileText, User, LinkIcon, Layers } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,7 @@ export default function TableCellViewer({
   const [isHydrated, setIsHydrated] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<
-    "info" | "base" | "new_base" | "docs"
+    "info" | "base" | "requested" | "changes" | "docs" | "dynamic"
   >("info");
 
   const [form, setForm] = React.useState<Partial<z.infer<typeof taskSchema>>>(
@@ -42,13 +42,8 @@ export default function TableCellViewer({
   );
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  React.useEffect(() => {
-    setIsHydrated(true);
-  }, []);
-
-  React.useEffect(() => {
-    setForm(item || {});
-  }, [item]);
+  React.useEffect(() => setIsHydrated(true), []);
+  React.useEffect(() => setForm(item || {}), [item]);
 
   if (!isHydrated) return null;
 
@@ -98,16 +93,6 @@ export default function TableCellViewer({
     });
   };
 
-  const removeAttachment = (index: number) => {
-  setForm((prev) => {
-    const updated = { ...prev };
-    const arr = [...(updated.attachments || [])];
-    arr.splice(index, 1);
-    updated.attachments = arr;
-    return updated;
-  });
-};
-
   const addAttachment = () => {
     setForm((prev) => ({
       ...prev,
@@ -118,23 +103,61 @@ export default function TableCellViewer({
     }));
   };
 
+  const removeAttachment = (index: number) => {
+    setForm((prev) => {
+      const updated = { ...prev };
+      const arr = [...(updated.attachments || [])];
+      arr.splice(index, 1);
+      updated.attachments = arr;
+      return updated;
+    });
+  };
+
+  const addDynamicField = () => {
+    setForm((prev) => ({
+      ...prev,
+      dynamicFields: {
+        ...(prev.dynamicFields || {}),
+        [""]: "",
+      },
+    }));
+  };
+
+  const handleDynamicChange = (key: string, value: any) => {
+    setForm((prev) => ({
+      ...prev,
+      dynamicFields: {
+        ...(prev.dynamicFields || {}),
+        [key]: value,
+      },
+    }));
+  };
+
+  const removeDynamicField = (key: string) => {
+    setForm((prev) => {
+      const updated = { ...(prev.dynamicFields || {}) };
+      delete updated[key];
+      return { ...prev, dynamicFields: updated };
+    });
+  };
+
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
       const result = await createTask(form);
-      if (result.success) {
-        setOpen(false);
-      }
+      if (result.success) setOpen(false);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const TABS = [
-    { id: "info", label: "Informasi", icon: FileText },
+    { id: "info", label: "Info", icon: FileText },
     { id: "base", label: "WP Lama", icon: User },
-    { id: "new_base", label: "WP Baru", icon: User },
+    { id: "requested", label: "Objek Baru", icon: Layers },
+    { id: "changes", label: "Perubahan", icon: Layers },
     { id: "docs", label: "Lampiran", icon: LinkIcon },
+    { id: "dynamic", label: "Dynamic", icon: FileText },
   ] as const;
 
   const currentOpen = controlledOpen ?? open;
@@ -151,300 +174,230 @@ export default function TableCellViewer({
       onOpenChange={handleOpenChange}
     >
       <DrawerTrigger asChild>
-        <Button variant="link" className="text-foreground w-fit px-0 text-left">
+        <Button variant="link" className="px-0">
           {item?.baseData?.taxpayerName || "-"}
         </Button>
       </DrawerTrigger>
 
-      <DrawerContent className="flex flex-col h-full max-h-[100vh]">
-        <DrawerHeader className="px-4 pb-2">
-          <DrawerTitle className="truncate text-base">
-            {form?.baseData?.taxpayerName || "Detail Data"}
+      <DrawerContent className="flex flex-col h-full max-h-screen">
+        <DrawerHeader className="px-4 border-b">
+          <DrawerTitle>
+            {form?.baseData?.taxpayerName || "Detail Task"}
           </DrawerTitle>
         </DrawerHeader>
 
-        <div className="px-4 pb-3">
-          <div className="grid grid-cols-4 gap-2">
+        {/* MAIN LAYOUT */}
+        <div className="flex flex-1 overflow-hidden">
+
+          {/* NAV ICON ONLY */}
+          <div className="w-16 border-r bg-muted/30 flex flex-col items-center py-2 gap-3">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex flex-col items-center justify-center py-2 rounded-lg text-[10px] transition-all
-                ${
+                title={tab.label}
+                className={`relative group p-2 rounded-lg transition ${
                   activeTab === tab.id
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted"
+                    ? "bg-primary text-white"
+                    : "hover:bg-muted"
                 }`}
               >
-                <tab.icon className="w-4 h-4 mb-1" />
-                {tab.label}
+                <tab.icon className="w-5 h-5" />
+
+                {/* hover label */}
+                <span className="absolute left-14 top-1/2 -translate-y-1/2 whitespace-nowrap bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition">
+                  {tab.label}
+                </span>
               </button>
             ))}
           </div>
-        </div>
 
-<div className="flex-1 overflow-y-auto px-4 pb-5">
-  <div key={activeTab} className="space-y-6">
+          {/* CONTENT */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-6">
 
-    {activeTab === "info" && (
-      <div className="border rounded-xl p-4 space-y-4">
-        <p className="text-sm font-semibold">Informasi Umum</p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {[
-            ["Jenis Layanan", "serviceType"],
-            ["NOP", "nop"],
-            ["NOPEL", "nopel"],
-            ["Stage", "currentStage"],
-          ].map(([label, key]) => (
-            <div key={key} className="space-y-1">
-              <Label className="text-xs text-muted-foreground">{label}</Label>
-              <Input
-                className="h-9"
-                value={(form as any)?.[key] || ""}
-                onChange={(e) => handleChange(key, e.target.value)}
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-    )}
-
-    {activeTab === "base" && (
-      <div className="border rounded-xl p-4 space-y-4">
-        <p className="text-sm font-semibold">Data Wajib Pajak</p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {[
-            ["Nama Wajib Pajak", "taxpayerName"],
-            ["Alamat Wajib Pajak", "taxpayerAddress"],
-            ["Desa", "taxpayerVillage"],
-            ["Kecamatan", "taxpayerSubdistrict"],
-            ["Alamat Objek Pajak", "taxObjectAddress"],
-            ["Desa Objek", "taxObjectVillage"],
-            ["Kecamatan Objek", "taxObjectSubdistrict"],
-          ].map(([label, key]) => (
-            <div key={key} className="space-y-1">
-              <Label className="text-xs text-muted-foreground">{label}</Label>
-              <Input
-                className="h-9"
-                value={(form?.baseData as any)?.[key] || ""}
-                onChange={(e) =>
-                  handleChange(`baseData.${key}`, e.target.value)
-                }
-              />
-            </div>
-          ))}
-
-          {[
-            ["Luas Tanah", "landArea"],
-            ["Luas Bangunan", "buildingArea"],
-          ].map(([label, key]) => (
-            <div key={key} className="space-y-1">
-              <Label className="text-xs text-muted-foreground">{label}</Label>
-              <Input
-                type="number"
-                className="h-9"
-                value={(form?.baseData as any)?.[key] || ""}
-                onChange={(e) =>
-                  handleChange(`baseData.${key}`, Number(e.target.value))
-                }
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-    )}
-
-    {activeTab === "new_base" && (
-      <div className="space-y-5">
-
-        <div className="border rounded-xl p-4 space-y-4">
-          <p className="text-sm font-semibold">Data Objek Baru</p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {[
-              ["Alamat Objek Baru", "taxObjectAddress"],
-              ["Desa Baru", "taxObjectVillage"],
-              ["Kecamatan Baru", "taxObjectSubdistrict"],
-            ].map(([label, key]) => (
-              <div key={key} className="space-y-1">
-                <Label className="text-xs text-muted-foreground">{label}</Label>
-                <Input
-                  className="h-9"
-                  value={(form?.requestedData as any)?.[key] || ""}
-                  onChange={(e) =>
-                    handleChange(`requestedData.${key}`, e.target.value)
-                  }
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <Button size="sm" onClick={addRequestedChange}>
-          Tambah Perubahan
-        </Button>
-
-        {(form?.requestedChanges || []).map((item, index) => (
-          <div
-            key={index}
-            className="border rounded-xl p-4 space-y-4"
-          >
-            <div className="flex justify-between items-center">
-              <p className="text-sm font-semibold">
-                Perubahan #{index + 1}
-              </p>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => removeRequestedChange(index)}
-              >
-                Hapus
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {[
-                ["Nama WP Baru", "taxpayerName"],
-                ["Alamat Baru", "taxpayerAddress"],
-                ["Desa", "taxpayerVillage"],
-                ["Kecamatan", "taxpayerSubdistrict"],
-                ["Sertifikat", "certificate"],
-                ["Status", "status"],
-              ].map(([label, key]) => (
-                <div key={key} className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">{label}</Label>
+            {/* INFO */}
+            {activeTab === "info" && (
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <Label>Service Type</Label>
                   <Input
-                    className="h-9"
-                    value={(item as any)?.[key] || ""}
+                    value={form.serviceType || ""}
                     onChange={(e) =>
-                      handleChange(
-                        `requestedChanges.${index}.${key}`,
-                        e.target.value
-                      )
+                      handleChange("serviceType", e.target.value)
                     }
                   />
                 </div>
-              ))}
 
-              {["landArea", "buildingArea"].map((key) => (
-                <div key={key} className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">
-                    {key === "landArea"
-                      ? "Luas Tanah"
-                      : "Luas Bangunan"}
-                  </Label>
-                  <Input
-                    type="number"
-                    className="h-9"
-                    value={(item as any)?.[key] || ""}
-                    onChange={(e) =>
-                      handleChange(
-                        `requestedChanges.${index}.${key}`,
-                        Number(e.target.value)
-                      )
-                    }
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label>NOP</Label>
+                    <Input
+                      value={form.nop || ""}
+                      onChange={(e) => handleChange("nop", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>NOPEL</Label>
+                    <Input
+                      value={form.nopel || ""}
+                      onChange={(e) => handleChange("nopel", e.target.value)}
+                    />
+                  </div>
                 </div>
-              ))}
-
-              <div className="sm:col-span-2 space-y-1">
-                <Label className="text-xs text-muted-foreground">
-                  Catatan
-                </Label>
-                <Input
-                  className="h-9"
-                  value={item?.note || ""}
-                  onChange={(e) =>
-                    handleChange(
-                      `requestedChanges.${index}.note`,
-                      e.target.value
-                    )
-                  }
-                />
               </div>
-            </div>
+            )}
+
+            {/* BASE */}
+            {activeTab === "base" && (
+              <div className="grid grid-cols-2 gap-4">
+                {Object.entries(form.baseData || {}).map(([key, val]) => (
+                  <div key={key} className="space-y-1">
+                    <Label className="text-xs">{key}</Label>
+                    <Input
+                      value={val as any}
+                      onChange={(e) =>
+                        handleChange(`baseData.${key}`, e.target.value)
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* REQUESTED */}
+            {activeTab === "requested" && (
+              <div className="grid grid-cols-2 gap-4">
+                {Object.entries(form.requestedData || {}).map(([key, val]) => (
+                  <div key={key} className="space-y-1">
+                    <Label className="text-xs">{key}</Label>
+                    <Input
+                      value={val as any}
+                      onChange={(e) =>
+                        handleChange(`requestedData.${key}`, e.target.value)
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* CHANGES */}
+            {activeTab === "changes" && (
+              <div className="space-y-4">
+                <Button size="sm" onClick={addRequestedChange}>
+                  Tambah
+                </Button>
+
+                {(form.requestedChanges || []).map((item, i) => (
+                  <div
+                    key={i}
+                    className="border rounded-xl p-4 space-y-3 bg-muted/20"
+                  >
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => removeRequestedChange(i)}
+                    >
+                      Hapus
+                    </Button>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {Object.entries(item || {}).map(([key, val]) => (
+                        <div key={key} className="space-y-1">
+                          <Label className="text-xs">{key}</Label>
+                          <Input
+                            value={val as any}
+                            onChange={(e) =>
+                              handleChange(
+                                `requestedChanges.${i}.${key}`,
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* DOCS */}
+            {activeTab === "docs" && (
+              <div className="space-y-4">
+                <Button size="sm" onClick={addAttachment}>
+                  Tambah
+                </Button>
+
+                {(form.attachments || []).map((att, i) => (
+                  <div key={i} className="space-y-3 border p-3 rounded-xl">
+                    <Input
+                      placeholder="Nama"
+                      value={att.linkName || ""}
+                      onChange={(e) =>
+                        handleChange(
+                          `attachments.${i}.linkName`,
+                          e.target.value,
+                        )
+                      }
+                    />
+                    <Input
+                      placeholder="Link"
+                      value={att.driveLink || ""}
+                      onChange={(e) =>
+                        handleChange(
+                          `attachments.${i}.driveLink`,
+                          e.target.value,
+                        )
+                      }
+                    />
+                    <Button onClick={() => removeAttachment(i)}>
+                      Hapus
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* DYNAMIC */}
+            {activeTab === "dynamic" && (
+              <div className="space-y-4">
+                <Button size="sm" onClick={addDynamicField}>
+                  Tambah
+                </Button>
+
+                {Object.entries(form.dynamicFields || {}).map(([key, val]) => (
+                  <div key={key} className="flex gap-2">
+                    <Input
+                      value={key}
+                      onChange={(e) =>
+                        handleDynamicChange(e.target.value, val)
+                      }
+                    />
+                    <Input
+                      value={val as any}
+                      onChange={(e) =>
+                        handleDynamicChange(key, e.target.value)
+                      }
+                    />
+                    <Button onClick={() => removeDynamicField(key)}>
+                      Hapus
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
           </div>
-        ))}
-      </div>
-    )}
-
-{activeTab === "docs" && (
-  <div className="border rounded-xl p-4 space-y-4">
-    <div className="flex justify-between items-center">
-      <p className="text-sm font-semibold">Lampiran</p>
-      <Button size="sm" onClick={addAttachment}>
-        Tambah
-      </Button>
-    </div>
-
-    {(form?.attachments || []).map((att, index) => (
-      <div
-        key={index}
-        className="border rounded-lg p-3 space-y-3"
-      >
-        <div className="flex justify-between items-center">
-          <p className="text-xs font-medium text-muted-foreground">
-            Lampiran #{index + 1}
-          </p>
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
-            onClick={() => removeAttachment(index)}
-          >
-            Hapus
-          </Button>
         </div>
 
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">
-            Nama Berkas
-          </Label>
-          <Input
-            className="h-9"
-            value={att?.linkName || ""}
-            onChange={(e) =>
-              handleChange(
-                `attachments.${index}.linkName`,
-                e.target.value
-              )
-            }
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">
-            Link Drive
-          </Label>
-          <Input
-            className="h-9"
-            value={att?.driveLink || ""}
-            onChange={(e) =>
-              handleChange(
-                `attachments.${index}.driveLink`,
-                e.target.value
-              )
-            }
-          />
-        </div>
-      </div>
-    ))}
-  </div>
-)}
-
-  </div>
-</div>
-
-        <DrawerFooter className="border-t px-4">
+        <DrawerFooter className="border-t">
           <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? "Menyimpan..." : "Submit"}
+            {isSubmitting ? "Loading..." : "Submit"}
           </Button>
           <DrawerClose asChild>
-            <Button variant="outline">Done</Button>
+            <Button variant="outline">Close</Button>
           </DrawerClose>
         </DrawerFooter>
       </DrawerContent>

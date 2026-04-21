@@ -1,73 +1,6 @@
-import mongoose, { Schema, Model, models, model } from "mongoose";
-
-const KECAMATAN_DATA = {
-  Pakuhaji: [
-    "Kalibaru",
-    "Surya Bahari",
-    "Sukawali",
-    "Kramat",
-    "Kohod",
-    "Gaga",
-    "Kiara Payung",
-    "Buaran Bambu",
-    "Paku Alam",
-    "Buaran Mangga",
-    "Pakuhaji",
-    "Bunisari",
-    "Laksana",
-    "Rawaboni",
-  ],
-  Kosambi: [
-    "Salembaran Jaya",
-    "Salembaran Jati",
-    "Kosambi Barat",
-    "Kosambi Timur",
-    "Dadap",
-    "Jatimulya",
-    "Cengklong",
-    "Blimbing",
-    "Rawa Burung",
-    "Rawa Rengas",
-  ],
-  Teluknaga: [
-    "Bojong Renged",
-    "Kebon Cau",
-    "Teluknaga",
-    "Babakan Asem",
-    "Kamp Melayu T",
-    "Kamp Melayu B",
-    "Kampung Besar",
-    "Lemo",
-    "Tegal Angus",
-    "Pangkalan",
-    "Tanjung Burung",
-    "Tanjung Pasir",
-    "Muara",
-  ],
-  "Sepatan Timur": [
-    "Kedaung Barat",
-    "Lebak Wangi",
-    "Tanah Merah",
-    "Jati Mulya",
-    "Gempolsari",
-    "Sangiang",
-    "Pondok Kelor",
-    "Kampung Kelor",
-  ],
-  Sepatan: [
-    "Mekarjaya",
-    "Karet",
-    "Pondok Jaya",
-    "Sepatan",
-    "Pisangan Jaya",
-    "Sarakan",
-    "Kayu Agung",
-    "Kayu Bongkok",
-  ],
-};
-
-const LIST_KECAMATAN = Object.keys(KECAMATAN_DATA);
-const LIST_DESA = Object.values(KECAMATAN_DATA).flat();
+import mongoose, { Schema, Model, models, model, Document } from "mongoose";
+import { LIST_KECAMATAN, LIST_DESA } from "@/lib/constants/region";
+import { STAGES, Stage } from "@/lib/constants/roles";
 
 export interface ITaskAttachment {
   driveLink: string;
@@ -97,19 +30,14 @@ export interface IAddRequestedData {
 
 export interface ITaskApproval {
   stageOrder: number;
-  stage:
-    | "penginputan"
-    | "penelitian"
-    | "pengarsipan"
-    | "pengiriman"
-    | "pemeriksaan";
+  stage: Stage;
   approvedBy?: mongoose.Types.ObjectId;
   approvedAt?: Date | null;
   status: "in_progress" | "approved" | "revised" | "rejected";
   note?: string;
 }
 
-export interface ITask {
+export interface ITask extends Document {
   serviceType:
     | "pengaktifan"
     | "mutasi habis update"
@@ -142,7 +70,7 @@ export interface ITask {
   approvals: ITaskApproval[];
 
   createdBy: mongoose.Types.ObjectId;
-  currentStage: ITaskApproval["stage"];
+  currentStage: Stage;
   overallStatus: "in_progress" | "approved" | "rejected" | "revised";
 
   reportId?: mongoose.Types.ObjectId;
@@ -152,7 +80,7 @@ export interface ITask {
     revisedBy: mongoose.Types.ObjectId;
     revisedNote: string;
     revisedAt: Date;
-    stageAtRevision: string;
+    stageAtRevision: Stage;
     isResolved: boolean;
   }>;
 
@@ -211,13 +139,7 @@ const taskApprovalSchema = new Schema<ITaskApproval>(
     stageOrder: { type: Number, required: true },
     stage: {
       type: String,
-      enum: [
-        "penginputan",
-        "penelitian",
-        "pengarsipan",
-        "pengiriman",
-        "pemeriksaan",
-      ],
+      enum: STAGES,
       default: "penginputan",
     },
     approvedBy: { type: Schema.Types.ObjectId, ref: "User" },
@@ -287,7 +209,11 @@ const taskSchema = new Schema<ITask>(
     attachments: [taskAttachmentSchema],
     approvals: [taskApprovalSchema],
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },
-    currentStage: { type: String, default: "penginputan" },
+    currentStage: {
+      type: String,
+      enum: STAGES,
+      default: "penginputan",
+    },
     overallStatus: {
       type: String,
       enum: ["in_progress", "approved", "rejected", "revised"],
@@ -300,7 +226,10 @@ const taskSchema = new Schema<ITask>(
         revisedBy: { type: Schema.Types.ObjectId, ref: "User" },
         revisedNote: String,
         revisedAt: { type: Date, default: Date.now },
-        stageAtRevision: String,
+        stageAtRevision: {
+          type: String,
+          enum: STAGES,
+        },
         isResolved: { type: Boolean, default: false },
       },
     ],
@@ -343,6 +272,4 @@ taskSchema.pre("save", function () {
   }
 });
 
-const Task: Model<ITask> = models.Task || model<ITask>("Task", taskSchema);
-
-export default Task;
+export const Task: Model<ITask> = models.Task || model<ITask>("Task", taskSchema);

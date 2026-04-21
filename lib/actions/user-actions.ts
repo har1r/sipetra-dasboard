@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import connectDB from "@/lib/db";
 import { User } from "@/models/user";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { requireRole } from "@/lib/auth/requireRole";
 import { z } from "zod";
 import { ROLES } from "@/lib/constants/roles";
 
@@ -13,7 +13,7 @@ const updateSchema = z.object({
 
 export async function getUserData() {
   try {
-    await requireAdmin();
+    await requireRole(["admin"]);
     await connectDB();
 
     const users = await User.find({}).sort({ createdAt: -1 }).lean();
@@ -36,7 +36,7 @@ export async function getUserData() {
 
 export async function updateUserDetails(id: string, rawData: any) {
   try {
-    await requireAdmin();
+    await requireRole(["admin"]);
 
     const validatedData = updateSchema.parse(rawData);
 

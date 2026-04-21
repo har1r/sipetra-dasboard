@@ -1,4 +1,4 @@
-import { Schema, model, models, Document } from "mongoose";
+import { Schema, Model, model, models, Document } from "mongoose";
 import { ROLES, Role } from "@/lib/constants/roles";
 
 export interface IUser extends Document {
@@ -27,9 +27,7 @@ const userSchema = new Schema<IUser>(
     email: {
       type: String,
       required: true,
-      unique: true,
       index: true,
-      sparse: true,
       lowercase: true,
       trim: true,
       match: [/^\S+@\S+\.\S+$/, "Invalid email format"],
@@ -46,4 +44,4 @@ const userSchema = new Schema<IUser>(
   },
 );
 
-export const User = models.User || model<IUser>("User", userSchema);
+export const User:Model<IUser> = models.User || model<IUser>("User", userSchema);

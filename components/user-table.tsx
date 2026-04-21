@@ -26,12 +26,9 @@ import {
   IconChevronRight,
   IconChevronsLeft,
   IconChevronsRight,
-  IconCircleCheckFilled,
   IconDotsVertical,
   IconGripVertical,
   IconLayoutColumns,
-  IconLoader,
-  IconPlus,
   IconTrendingUp,
 } from "@tabler/icons-react";
 import {
@@ -81,7 +78,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -100,19 +96,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
+import { ROLES } from "@/lib/constants/roles";
+import { formatDate } from "@/lib/utils";
 import { updateUserDetails } from "@/lib/actions/user-actions";
 
 export const schema = z.object({
   id: z.string(),
   name: z.string(),
   email: z.string(),
-  role: z.string(),
+  role: z.enum(ROLES),
   createdAt: z.string(),
-  updatedAt: z.string(),
+  updatedAt: z.string().optional(),
 });
 
-// Create a separate component for the drag handle
 function DragHandle({ id }: { id: string }) {
   const { attributes, listeners } = useSortable({
     id,
@@ -131,119 +127,6 @@ function DragHandle({ id }: { id: string }) {
     </Button>
   );
 }
-
-const columns: ColumnDef<z.infer<typeof schema>>[] = [
-  {
-    id: "drag",
-    header: () => null,
-    cell: ({ row }) => <DragHandle id={row.original.id} />,
-  },
-  {
-    id: "select",
-    header: ({ table }) => (
-      <div className="flex items-center justify-center">
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && "indeterminate")
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      </div>
-    ),
-    cell: ({ row }) => (
-      <div className="flex items-center justify-center">
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-      </div>
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "name",
-    header: "Name",
-    cell: ({ row }) => {
-      return <TableCellViewer item={row.original} />;
-    },
-    enableHiding: false,
-  },
-  {
-    accessorKey: "role",
-    header: "Role",
-    cell: ({ row }) => (
-      <Badge variant="outline" className="text-muted-foreground px-1.5">
-        {row.original.role}
-      </Badge>
-    ),
-  },
-  {
-    accessorKey: "email",
-    header: "Email",
-    cell: ({ row }) => (
-      <div>
-        <Badge variant="outline" className="text-muted-foreground px-1.5">
-          {row.original.email}
-        </Badge>
-      </div>
-    ),
-  },
-  {
-    accessorKey: "userId",
-    header: "UserId",
-    cell: ({ row }) => (
-      <Badge variant="outline" className="text-muted-foreground px-1.5">
-        {row.original.id}
-      </Badge>
-    ),
-  },
-  {
-    accessorKey: "createdAt",
-    header: "Created At",
-    cell: ({ row }) => (
-      <Badge variant="outline" className="text-muted-foreground px-1.5">
-        {row.original.createdAt}
-      </Badge>
-    ),
-  },
-  {
-    accessorKey: "updatedAt",
-    header: "Updated At",
-    cell: ({ row }) => (
-      <Badge variant="outline" className="text-muted-foreground px-1.5">
-        {row.original.updatedAt}
-      </Badge>
-    ),
-  },
-  {
-    id: "actions",
-    cell: () => (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
-            size="icon"
-          >
-            <IconDotsVertical />
-            <span className="sr-only">Open menu</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-32">
-          <DropdownMenuItem>Edit</DropdownMenuItem>
-          <DropdownMenuItem>Make a copy</DropdownMenuItem>
-          <DropdownMenuItem>Favorite</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    ),
-  },
-];
 
 function DraggableRow({ row }: { row: Row<z.infer<typeof schema>> }) {
   const { transform, transition, setNodeRef, isDragging } = useSortable({
@@ -275,8 +158,127 @@ export function UserTable({
 }: {
   data: z.infer<typeof schema>[];
 }) {
+  const columns = React.useMemo<ColumnDef<z.infer<typeof schema>>[]>(
+    () => [
+      {
+        id: "drag",
+        header: () => null,
+        cell: ({ row }) => <DragHandle id={row.original.id} />,
+      },
+      {
+        id: "select",
+        header: ({ table }) => (
+          <div className="flex items-center justify-center">
+            <Checkbox
+              checked={
+                table.getIsAllPageRowsSelected() ||
+                (table.getIsSomePageRowsSelected() && "indeterminate")
+              }
+              onCheckedChange={(value) =>
+                table.toggleAllPageRowsSelected(!!value)
+              }
+              aria-label="Select all"
+            />
+          </div>
+        ),
+        cell: ({ row }) => (
+          <div className="flex items-center justify-center">
+            <Checkbox
+              checked={row.getIsSelected()}
+              onCheckedChange={(value) => row.toggleSelected(!!value)}
+              aria-label="Select row"
+            />
+          </div>
+        ),
+        enableSorting: false,
+        enableHiding: false,
+      },
+      {
+        accessorKey: "name",
+        header: "Nama",
+        cell: ({ row }) => {
+          return <TableCellViewer item={row.original} />;
+        },
+        enableHiding: false,
+      },
+      {
+        accessorKey: "role",
+        header: "Role",
+        cell: ({ row }) => (
+          <Badge variant="outline" className="text-muted-foreground px-1.5">
+            {row.original.role}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "email",
+        header: "Email",
+        cell: ({ row }) => (
+          <div>
+            <Badge variant="outline" className="text-muted-foreground px-1.5">
+              {row.original.email}
+            </Badge>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "id",
+        header: "User ID",
+        cell: ({ row }) => (
+          <Badge variant="outline" className="text-muted-foreground px-1.5">
+            {row.original.id}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "createdAt",
+        header: "Tgl Dibuat",
+        cell: ({ row }) => (
+          <Badge variant="outline" className="text-muted-foreground px-1.5">
+            {formatDate(row.original.createdAt)}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "updatedAt",
+        header: "Tgl Diperbarui",
+        cell: ({ row }) => (
+          <Badge variant="outline" className="text-muted-foreground px-1.5">
+            {row.original.updatedAt
+              ? formatDate(row.original.updatedAt)
+              : "N/A"}
+          </Badge>
+        ),
+      },
+      {
+        id: "actions",
+        cell: () => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                size="icon"
+              >
+                <IconDotsVertical />
+                <span className="sr-only">Open menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-32">
+              <DropdownMenuItem>Edit</DropdownMenuItem>
+              <DropdownMenuItem>Make a copy</DropdownMenuItem>
+              <DropdownMenuItem>Favorite</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ),
+      },
+    ],
+    [],
+  );
+
   const [data, setData] = React.useState(() => initialData);
-  console.log("Initial data:", initialData);
 
   React.useEffect(() => {
     setData(initialData);
@@ -585,20 +587,31 @@ const chartConfig = {
 function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
   const isMobile = useIsMobile();
   const [open, setOpen] = React.useState(false);
-  const [selectedRole, setSelectedRole] = React.useState(item.role);
+  const [selectedRole, setSelectedRole] = React.useState<string>(item.role);
 
-  const handleSave = async (userId: string, newRole: string) => {
+  React.useEffect(() => {
+    setSelectedRole(item.role);
+  }, [item.role]);
+
+  const handleSave = async () => {
+    if (selectedRole === item.role) {
+      setOpen(false);
+      return;
+    }
+
     const toastId = toast.loading("Sedang memperbarui data...");
 
-    const result = await updateUserDetails(userId, {
-      role: newRole,
+    const result = await updateUserDetails(item.id, {
+      role: selectedRole,
     });
 
     if (result.success) {
       toast.success("Berhasil diperbarui!", { id: toastId });
       setOpen(false);
     } else {
-      toast.error(result.message || "Gagal memperbarui", { id: toastId });
+      toast.error(result.message || "Gagal memperbarui", {
+        id: toastId,
+      });
     }
   };
 
@@ -613,13 +626,13 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
           {item.name}
         </Button>
       </DrawerTrigger>
+
       <DrawerContent>
         <DrawerHeader className="gap-1">
           <DrawerTitle>{item.name}</DrawerTitle>
-          <DrawerDescription>
-            Showing total visitors for the last 6 months
-          </DrawerDescription>
+          <DrawerDescription>Kelola role user</DrawerDescription>
         </DrawerHeader>
+
         <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
           {!isMobile && (
             <>
@@ -627,10 +640,7 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
                 <AreaChart
                   accessibilityLayer
                   data={chartData}
-                  margin={{
-                    left: 0,
-                    right: 10,
-                  }}
+                  margin={{ left: 0, right: 10 }}
                 >
                   <CartesianGrid vertical={false} />
                   <XAxis
@@ -663,52 +673,46 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
                   />
                 </AreaChart>
               </ChartContainer>
+
               <Separator />
+
               <div className="grid gap-2">
                 <div className="flex gap-2 leading-none font-medium">
-                  Trending up by 5.2% this month{" "}
-                  <IconTrendingUp className="size-4" />
+                  Statistik dummy <IconTrendingUp className="size-4" />
                 </div>
                 <div className="text-muted-foreground">
-                  Showing total visitors for the last 6 months. This is just
-                  some random text to test the layout. It spans multiple lines
-                  and should wrap around.
+                  Data ini hanya contoh tampilan UI.
                 </div>
               </div>
+
               <Separator />
             </>
           )}
+
           <form className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-3">
-                <Label htmlFor="role">Role</Label>
-                <Select
-                  defaultValue={item.role}
-                  value={selectedRole}
-                  onValueChange={setSelectedRole}
-                >
-                  <SelectTrigger id="type" className="w-full">
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="penginput">Penginput</SelectItem>
-                    <SelectItem value="peneliti">Peneliti</SelectItem>
-                    <SelectItem value="pengarsip">Pengarsip</SelectItem>
-                    <SelectItem value="pengirim">Pengirim</SelectItem>
-                    <SelectItem value="pemeriksa">Pemeriksa</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="flex flex-col gap-3">
+              <Label htmlFor="role">Role</Label>
+              <Select value={selectedRole} onValueChange={setSelectedRole}>
+                <SelectTrigger id="role" className="w-full">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="penginput">Penginput</SelectItem>
+                  <SelectItem value="peneliti">Peneliti</SelectItem>
+                  <SelectItem value="pengarsip">Pengarsip</SelectItem>
+                  <SelectItem value="pengirim">Pengirim</SelectItem>
+                  <SelectItem value="pemeriksa">Pemeriksa</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </form>
         </div>
+
         <DrawerFooter>
-          <Button onClick={() => handleSave(item.id, selectedRole)}>
-            Submit
-          </Button>
+          <Button onClick={handleSave}>Simpan</Button>
           <DrawerClose asChild>
-            <Button variant="outline">Done</Button>
+            <Button variant="outline">Tutup</Button>
           </DrawerClose>
         </DrawerFooter>
       </DrawerContent>

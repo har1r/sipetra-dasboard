@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import { User } from "@/models/user";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { requireRole } from "@/lib/auth/requireRole";
 import { z } from "zod";
 import { ROLES } from "@/lib/constants/roles";
 
@@ -14,7 +14,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAdmin();
+    await requireRole(["admin"]);
     await connectDB();
 
     const { id } = await params;

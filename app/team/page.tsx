@@ -2,11 +2,13 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { UserTable } from "@/components/user-table";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { z } from "zod";
+import { schema } from "@/components/user-table";
 
 import { getUserData } from "../../lib/actions/user-actions";
 
 export default async function Page() {
-  const userData = await getUserData();
+  const userData: z.infer<typeof schema>[] = await getUserData();
 
   return (
     <SidebarProvider
@@ -23,7 +25,7 @@ export default async function Page() {
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-              <UserTable data={userData} />
+              <UserTable data={userData || []} />
             </div>
           </div>
         </div>
