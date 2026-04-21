@@ -1,19 +1,12 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import { User } from "@/models/user";
-import { auth } from "@clerk/nextjs/server";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { z } from "zod";
-import { ROLE_STAGE_MAP } from "@/lib/constants/roles";
+import { ROLES } from "@/lib/constants/roles";
 
 const schema = z.object({
-  role: z.enum([
-    "admin",
-    "penginput",
-    "peneliti",
-    "pengarsip",
-    "pengirim",
-    "pemeriksa",
-  ]),
+  role: z.enum(ROLES),
 });
 
 export async function PATCH(
@@ -21,32 +14,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await requireAdmin();
+    await connectDB();
+
     const { id } = await params;
     const body = await req.json();
 
-    await connectDB();
-
-    const { userId } = await auth();
-
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const currentUser = await User.findOne({ clerkId: userId });
-
-    if (!currentUser) {
-      return NextResponse.json(
-        { error: "User tidak ditemukan" },
-        { status: 404 },
-      );
-    }
-
-    if (currentUser.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
     const parsed = schema.safeParse(body);
-
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid input", detail: parsed.error },
@@ -54,17 +28,16 @@ export async function PATCH(
       );
     }
 
-    const role = parsed.data.role;
-    const stages = ROLE_STAGE_MAP[role];
+    const { role } = parsed.data;
 
     const updatedUser = await User.findOneAndUpdate(
       { clerkId: id },
-      { role, stages },
+      { role },
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       },
-    );
+    ).lean();
 
     if (!updatedUser) {
       return NextResponse.json(
@@ -73,12 +46,28 @@ export async function PATCH(
       );
     }
 
+    const safeUser = {
+      id: updatedUser._id.toString(),
+      name: updatedUser.name,
+      email: updatedUser.email,
+      role: updatedUser.role,
+      createdAt: updatedUser.createdAt?.toISOString(),
+    };
+
     return NextResponse.json({
       success: true,
-      user: updatedUser,
+      user: safeUser,
     });
   } catch (error: any) {
     console.error("API Error:", error.message);
+
+    if (error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (error.message === "Forbidden") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     return NextResponse.json(
       { error: "Internal server error" },

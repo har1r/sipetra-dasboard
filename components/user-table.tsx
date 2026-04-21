@@ -104,11 +104,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateUserDetails } from "@/lib/actions/user-actions";
 
 export const schema = z.object({
-  _id: z.string(),
+  id: z.string(),
   name: z.string(),
   email: z.string(),
   role: z.string(),
-  stages: z.array(z.string()),
+  createdAt: z.string(),
+  updatedAt: z.string(),
 });
 
 // Create a separate component for the drag handle
@@ -135,7 +136,7 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
   {
     id: "drag",
     header: () => null,
-    cell: ({ row }) => <DragHandle id={row.original._id} />,
+    cell: ({ row }) => <DragHandle id={row.original.id} />,
   },
   {
     id: "select",
@@ -172,10 +173,19 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
     enableHiding: false,
   },
   {
+    accessorKey: "role",
+    header: "Role",
+    cell: ({ row }) => (
+      <Badge variant="outline" className="text-muted-foreground px-1.5">
+        {row.original.role}
+      </Badge>
+    ),
+  },
+  {
     accessorKey: "email",
     header: "Email",
     cell: ({ row }) => (
-      <div className="w-32">
+      <div>
         <Badge variant="outline" className="text-muted-foreground px-1.5">
           {row.original.email}
         </Badge>
@@ -186,27 +196,27 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
     accessorKey: "userId",
     header: "UserId",
     cell: ({ row }) => (
-        <Badge variant="outline" className="text-muted-foreground px-1.5">
-          {row.original._id}
-        </Badge>
+      <Badge variant="outline" className="text-muted-foreground px-1.5">
+        {row.original.id}
+      </Badge>
     ),
   },
   {
-    accessorKey: "role",
-    header: "Role",
+    accessorKey: "createdAt",
+    header: "Created At",
     cell: ({ row }) => (
-        <Badge variant="outline" className="text-muted-foreground px-1.5">
-          {row.original.role}
-        </Badge>
+      <Badge variant="outline" className="text-muted-foreground px-1.5">
+        {row.original.createdAt}
+      </Badge>
     ),
   },
   {
-    accessorKey: "stages",
-    header: "Stages",
+    accessorKey: "updatedAt",
+    header: "Updated At",
     cell: ({ row }) => (
-        <Badge variant="outline" className="text-muted-foreground px-1.5">
-          {row.original.stages}
-        </Badge>
+      <Badge variant="outline" className="text-muted-foreground px-1.5">
+        {row.original.updatedAt}
+      </Badge>
     ),
   },
   {
@@ -237,7 +247,7 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
 
 function DraggableRow({ row }: { row: Row<z.infer<typeof schema>> }) {
   const { transform, transition, setNodeRef, isDragging } = useSortable({
-    id: row.original._id,
+    id: row.original.id,
   });
 
   return (
@@ -266,6 +276,7 @@ export function UserTable({
   data: z.infer<typeof schema>[];
 }) {
   const [data, setData] = React.useState(() => initialData);
+  console.log("Initial data:", initialData);
 
   React.useEffect(() => {
     setData(initialData);
@@ -290,7 +301,7 @@ export function UserTable({
   );
 
   const dataIds = React.useMemo<UniqueIdentifier[]>(
-    () => data?.map(({ _id }) => _id) || [],
+    () => data?.map(({ id }) => id) || [],
     [data],
   );
 
@@ -304,7 +315,7 @@ export function UserTable({
       columnFilters,
       pagination,
     },
-    getRowId: (row) => row._id,
+    getRowId: (row) => row.id,
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
@@ -397,10 +408,6 @@ export function UserTable({
                 })}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" size="sm">
-            <IconPlus />
-            <span className="hidden lg:inline">Add Section</span>
-          </Button>
         </div>
       </div>
       <TabsContent
@@ -579,20 +586,12 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
   const isMobile = useIsMobile();
   const [open, setOpen] = React.useState(false);
   const [selectedRole, setSelectedRole] = React.useState(item.role);
-  const [selectedStages, setSelectedStages] = React.useState<string[]>(
-    item.stages,
-  );
 
-  const handleSave = async (
-    userId: string,
-    newRole: string,
-    newStages: string[],
-  ) => {
+  const handleSave = async (userId: string, newRole: string) => {
     const toastId = toast.loading("Sedang memperbarui data...");
 
     const result = await updateUserDetails(userId, {
       role: newRole,
-      stages: newStages,
     });
 
     if (result.success) {
@@ -692,6 +691,7 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
                     <SelectValue placeholder="Select a role" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="penginput">Penginput</SelectItem>
                     <SelectItem value="peneliti">Peneliti</SelectItem>
                     <SelectItem value="pengarsip">Pengarsip</SelectItem>
@@ -700,32 +700,11 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex flex-col gap-3">
-                <Label htmlFor="stages">Stages</Label>
-                <Select
-                  defaultValue={item.stages[0]}
-                  value={selectedStages[0]}
-                  onValueChange={(val) => setSelectedStages([val])}
-                >
-                  <SelectTrigger id="status" className="w-full">
-                    <SelectValue placeholder="Select a stages" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="penginputan">Penginputan</SelectItem>
-                    <SelectItem value="penelitian">Penelitian</SelectItem>
-                    <SelectItem value="pengarsipan">Pengarsipan</SelectItem>
-                    <SelectItem value="pengiriman">Pengiriman</SelectItem>
-                    <SelectItem value="pemeriksaan">Pemeriksaan</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           </form>
         </div>
         <DrawerFooter>
-          <Button
-            onClick={() => handleSave(item._id, selectedRole, selectedStages)}
-          >
+          <Button onClick={() => handleSave(item.id, selectedRole)}>
             Submit
           </Button>
           <DrawerClose asChild>

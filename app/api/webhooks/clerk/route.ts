@@ -6,7 +6,6 @@ import connectDB from "@/lib/db";
 
 export async function POST(req: Request) {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
-
   if (!WEBHOOK_SECRET) {
     return new Response("Missing webhook secret", { status: 500 });
   }
@@ -56,28 +55,25 @@ export async function POST(req: Request) {
           [data.first_name, data.last_name].filter(Boolean).join(" ").trim() ||
           "User";
 
-        await User.findOneAndUpdate(
+        await User.updateOne(
           { clerkId: data.id },
           {
-            clerkId: data.id,
-            name,
-            email,
+            $set: {
+              name,
+              email,
+            },
             $setOnInsert: {
               role: "penginput",
-              stages: ["penginputan"],
             },
           },
-          {
-            upsert: true,
-            new: true,
-          },
+          { upsert: true },
         );
 
         break;
       }
 
       case "user.deleted": {
-        await User.findOneAndDelete({ clerkId: data.id });
+        await User.deleteOne({ clerkId: data.id });
         break;
       }
 

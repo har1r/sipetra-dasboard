@@ -1,31 +1,11 @@
-import mongoose, { Schema, model, models, Document } from "mongoose";
-
-export const ROLES = [
-  "admin",
-  "penginput",
-  "peneliti",
-  "pengarsip",
-  "pengirim",
-  "pemeriksa",
-] as const;
-
-export const STAGES = [
-  "penginputan",
-  "penelitian",
-  "pengarsipan",
-  "pengiriman",
-  "pemeriksaan",
-] as const;
-
-export type Role = (typeof ROLES)[number];
-export type Stage = (typeof STAGES)[number];
+import { Schema, model, models, Document } from "mongoose";
+import { ROLES, Role } from "@/lib/constants/roles";
 
 export interface IUser extends Document {
   clerkId: string;
   name: string;
   email: string;
   role: Role;
-  stages: Stage[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,6 +28,8 @@ const userSchema = new Schema<IUser>(
       type: String,
       required: true,
       unique: true,
+      index: true,
+      sparse: true,
       lowercase: true,
       trim: true,
       match: [/^\S+@\S+\.\S+$/, "Invalid email format"],
@@ -57,10 +39,6 @@ const userSchema = new Schema<IUser>(
       enum: ROLES,
       default: "penginput",
       required: true,
-    },
-    stages: {
-      type: [String],
-      enum: STAGES,
     },
   },
   {

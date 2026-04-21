@@ -3,55 +3,55 @@
 import { revalidatePath } from "next/cache";
 import connectDB from "@/lib/db";
 import { User } from "@/models/user";
-import { auth } from "@clerk/nextjs/server";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { z } from "zod";
+import { ROLES } from "@/lib/constants/roles";
+
+const updateSchema = z.object({
+  role: z.enum(ROLES),
+});
 
 export async function getUserData() {
   try {
-    const { userId } = await auth();
-    console.log("Authenticated User ID:", userId);
-    if (!userId) return [];
-
+    await requireAdmin();
     await connectDB();
-
-    const currentUser = await User.findOne({ clerkId: userId });
-
-    if (!currentUser || currentUser.role !== "admin") {
-      return [];
-    }
 
     const users = await User.find({}).sort({ createdAt: -1 }).lean();
 
-    return JSON.parse(JSON.stringify(users));
+    const safeUsers = users.map((user: any) => ({
+      id: user.clerkId,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
+    }));
+
+    return safeUsers;
   } catch (error) {
     console.error("Database error:", error);
     return [];
   }
 }
 
-export async function updateUserDetails(
-  id: string,
-  payload: { role?: string; stages?: string[] },
-) {
+export async function updateUserDetails(id: string, rawData: any) {
   try {
-    const { userId } = await auth();
+    await requireAdmin();
 
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+    const validatedData = updateSchema.parse(rawData);
 
     await connectDB();
 
-    const currentUser = await User.findOne({ clerkId: userId });
-
-    if (!currentUser || currentUser.role !== "admin") {
-      throw new Error("Forbidden");
-    }
-
     const updatedUser = await User.findOneAndUpdate(
       { clerkId: id },
-      { $set: payload },
-      { new: true, runValidators: true },
-    );
+      {
+        role: validatedData.role,
+      },
+      {
+        returnDocument: "after",
+        runValidators: true,
+      },
+    ).lean();
 
     if (!updatedUser) {
       throw new Error("User tidak ditemukan");
@@ -61,6 +61,15 @@ export async function updateUserDetails(
     return { success: true };
   } catch (error: any) {
     console.error("Update error:", error.message);
+
+    if (error.message === "Unauthorized") {
+      return { success: false, message: "Unauthorized" };
+    }
+
+    if (error.message === "Forbidden") {
+      return { success: false, message: "Forbidden" };
+    }
+
     return { success: false, message: error.message };
   }
 }
