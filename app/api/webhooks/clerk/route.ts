@@ -8,17 +8,17 @@ export async function POST(req: Request) {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
   if (!WEBHOOK_SECRET) {
-    console.error("❌ WEBHOOK_SECRET TIDAK DITEMUKAN");
-    return new Response("Internal Server Error", { status: 500 });
+    return new Response("Missing webhook secret", { status: 500 });
   }
 
   const headerPayload = await headers();
+
   const svix_id = headerPayload.get("svix-id");
   const svix_timestamp = headerPayload.get("svix-timestamp");
   const svix_signature = headerPayload.get("svix-signature");
 
   if (!svix_id || !svix_timestamp || !svix_signature) {
-    return new Response("Error: Missing svix headers", { status: 400 });
+    return new Response("Missing svix headers", { status: 400 });
   }
 
   const payload = await req.json();
@@ -34,37 +34,60 @@ export async function POST(req: Request) {
       "svix-signature": svix_signature,
     }) as WebhookEvent;
   } catch (err) {
-    return new Response("Verification failed", { status: 400 });
+    console.error("Webhook verification failed");
+    return new Response("Invalid signature", { status: 400 });
   }
 
-  const eventType = evt.type;
+  const { type, data } = evt;
+  await connectDB();
 
-  if (eventType === "user.created" || eventType === "user.updated") {
-    const { id, email_addresses, first_name, last_name } = evt.data;
+  try {
+    switch (type) {
+      case "user.created":
+      case "user.updated": {
+        const email = data.email_addresses?.[0]?.email_address;
 
-    try {
-      await connectDB();
+        if (!email) {
+          console.warn("Email tidak ditemukan");
+          return new Response("No email", { status: 400 });
+        }
 
-      await User.findOneAndUpdate(
-        { clerkId: id },
-        {
-          clerkId: id,
-          name: `${first_name || ""} ${last_name || ""}`.trim(),
-          email: email_addresses[0].email_address,
-          $setOnInsert: {
-            role: "penginput",
-            stages: ["penginputan"],
+        const name =
+          [data.first_name, data.last_name].filter(Boolean).join(" ").trim() ||
+          "User";
+
+        await User.findOneAndUpdate(
+          { clerkId: data.id },
+          {
+            clerkId: data.id,
+            name,
+            email,
+            $setOnInsert: {
+              role: "penginput",
+              stages: ["penginputan"],
+            },
           },
-        },
-        { upsert: true, new: true },
-      );
+          {
+            upsert: true,
+            new: true,
+          },
+        );
 
-      return new Response("Success", { status: 200 });
-    } catch (error: any) {
-      console.error("❌ Database Error:", error.message);
-      return new Response("Database Error", { status: 500 });
+        break;
+      }
+
+      case "user.deleted": {
+        await User.findOneAndDelete({ clerkId: data.id });
+        break;
+      }
+
+      default:
+        console.log(`Unhandled event: ${type}`);
     }
-  }
 
-  return new Response("Webhook received", { status: 200 });
+    return new Response("OK", { status: 200 });
+  } catch (error: any) {
+    console.error("Database error:", error.message);
+    return new Response("Database error", { status: 500 });
+  }
 }

@@ -1,19 +1,29 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import connectDB from "@/lib/db";
+import { User } from "@/models/user";
+import { auth } from "@clerk/nextjs/server";
 
 export async function getUserData() {
   try {
-    const res = await fetch(`${API_URL}/api/users`, {
-      cache: "no-store",
-    });
+    const { userId } = await auth();
+    console.log("Authenticated User ID:", userId);
+    if (!userId) return [];
 
-    if (!res.ok) return [];
-    return res.json();
+    await connectDB();
+
+    const currentUser = await User.findOne({ clerkId: userId });
+
+    if (!currentUser || currentUser.role !== "admin") {
+      return [];
+    }
+
+    const users = await User.find({}).sort({ createdAt: -1 }).lean();
+
+    return JSON.parse(JSON.stringify(users));
   } catch (error) {
-    console.error("Fetch error:", error);
+    console.error("Database error:", error);
     return [];
   }
 }
@@ -23,25 +33,34 @@ export async function updateUserDetails(
   payload: { role?: string; stages?: string[] },
 ) {
   try {
-    const targetUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/users/${id}`;
-    console.log("🚀 Calling URL:", targetUrl); // Debugging
+    const { userId } = await auth();
 
-    const res = await fetch(targetUrl, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json();
-      console.error("❌ Server responded with:", errorData);
-      throw new Error(errorData.error || "Gagal memperbarui database");
+    if (!userId) {
+      throw new Error("Unauthorized");
     }
 
-    revalidatePath("/team"); // Pastikan path ini benar (apakah /team atau /dashboard?)
+    await connectDB();
+
+    const currentUser = await User.findOne({ clerkId: userId });
+
+    if (!currentUser || currentUser.role !== "admin") {
+      throw new Error("Forbidden");
+    }
+
+    const updatedUser = await User.findOneAndUpdate(
+      { clerkId: id },
+      { $set: payload },
+      { new: true, runValidators: true },
+    );
+
+    if (!updatedUser) {
+      throw new Error("User tidak ditemukan");
+    }
+
+    revalidatePath("/team");
     return { success: true };
   } catch (error: any) {
-    console.error("❌ Action error:", error.message);
+    console.error("Update error:", error.message);
     return { success: false, message: error.message };
   }
 }

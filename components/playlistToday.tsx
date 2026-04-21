@@ -1,13 +1,32 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Play, Pause } from "lucide-react";
 import { useAudio } from "@/components/providers/audio-provider";
 
 export default function PlaylistToday() {
   const { analyserRef, playing, toggle } = useAudio();
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | null>(null);
+
+  const [mode, setMode] = useState<"full" | "compact" | "icon">("full");
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0].contentRect.width;
+
+      if (width < 140) setMode("icon");
+      else if (width < 240) setMode("compact");
+      else setMode("full");
+    });
+
+    observer.observe(containerRef.current);
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     let started = false;
@@ -66,22 +85,38 @@ export default function PlaylistToday() {
   }, [analyserRef]);
 
   return (
-    <div className="flex items-center gap-4 px-3 rounded-full bg-black/70 backdrop-blur border border-white/10 shadow-md ml-4">
+    <div
+      ref={containerRef}
+      className="flex items-center gap-2 px-2 py-1.5 max-w-[280px] w-full min-w-0 rounded-full bg-black/70 backdrop-blur border border-white/10 shadow-md transition-all"
+    >
       <button
         onClick={toggle}
-        className="flex items-center justify-center w-6 h-6 rounded-full bg-green-500 text-black hover:scale-105 transition"
+        className="flex items-center justify-center w-6 h-6 shrink-0 rounded-full bg-green-500 text-black"
       >
         {playing ? <Pause size={14} /> : <Play size={14} />}
       </button>
 
-      <div className="flex flex-col leading-tight">
-        <span className="text-xs font-semibold text-white">
-          DJ Kakapun Manis
-        </span>
-        <span className="text-xs text-gray-400">Remix Indonesia</span>
-      </div>
+      {mode !== "icon" && (
+        <div className="flex flex-col leading-tight min-w-0 flex-1">
+          <span className="text-[11px] font-semibold text-white truncate">
+            DJ Kakapun Manis
+          </span>
+          {mode === "full" && (
+            <span className="text-[10px] text-gray-400 truncate">
+              Remix Indonesia
+            </span>
+          )}
+        </div>
+      )}
 
-      <canvas ref={canvasRef} width={160} height={30} />
+      {mode === "full" && (
+        <canvas
+          ref={canvasRef}
+          width={80}
+          height={24}
+          className="shrink-0"
+        />
+      )}
     </div>
   );
 }

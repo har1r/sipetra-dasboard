@@ -1,19 +1,24 @@
 import mongoose, { Schema, model, models, Document } from "mongoose";
 
-type Role =
-  | "penginput"
-  | "peneliti"
-  | "pengarsip"
-  | "pengirim"
-  | "pemeriksa"
-  | "admin";
+export const ROLES = [
+  "admin",
+  "penginput",
+  "peneliti",
+  "pengarsip",
+  "pengirim",
+  "pemeriksa",
+] as const;
 
-type Stage =
-  | "penginputan"
-  | "penelitian"
-  | "pengarsipan"
-  | "pengiriman"
-  | "pemeriksaan";
+export const STAGES = [
+  "penginputan",
+  "penelitian",
+  "pengarsipan",
+  "pengiriman",
+  "pemeriksaan",
+] as const;
+
+export type Role = (typeof ROLES)[number];
+export type Stage = (typeof STAGES)[number];
 
 export interface IUser extends Document {
   clerkId: string;
@@ -31,11 +36,13 @@ const userSchema = new Schema<IUser>(
       type: String,
       required: true,
       unique: true,
+      index: true,
     },
     name: {
       type: String,
       required: true,
       trim: true,
+      minlength: 2,
     },
     email: {
       type: String,
@@ -43,30 +50,17 @@ const userSchema = new Schema<IUser>(
       unique: true,
       lowercase: true,
       trim: true,
+      match: [/^\S+@\S+\.\S+$/, "Invalid email format"],
     },
     role: {
       type: String,
-      enum: [
-        "admin",
-        "penginput",
-        "peneliti",
-        "pengarsip",
-        "pengirim",
-        "pemeriksa",
-      ],
+      enum: ROLES,
       default: "penginput",
       required: true,
     },
     stages: {
       type: [String],
-      enum: [
-        "penginputan",
-        "penelitian",
-        "pengarsipan",
-        "pengiriman",
-        "pemeriksaan",
-      ],
-      default: ["penginputan"],
+      enum: STAGES,
     },
   },
   {

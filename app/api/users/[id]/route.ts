@@ -1,36 +1,88 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import { User } from "@/models/user";
+import { auth } from "@clerk/nextjs/server";
+import { z } from "zod";
+import { ROLE_STAGE_MAP } from "@/lib/constants/roles";
+
+const schema = z.object({
+  role: z.enum([
+    "admin",
+    "penginput",
+    "peneliti",
+    "pengarsip",
+    "pengirim",
+    "pemeriksa",
+  ]),
+});
 
 export async function PATCH(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }, // Gunakan Promise jika Next.js 15
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = await params; // Await params
+    const { id } = await params;
     const body = await req.json();
-    const { role, stages } = body;
 
     await connectDB();
 
-    // Pastikan ID valid sebelum query
-    const updatedUser = await User.findByIdAndUpdate(
-      id,
-      { role, stages },
-      { new: true, runValidators: true }, // 'new: true' sama dengan returnDocument: 'after'
-    );
+    const { userId } = await auth();
 
-    if (!updatedUser) {
-      console.log("⚠️ User tidak ditemukan di DB dengan ID:", id);
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const currentUser = await User.findOne({ clerkId: userId });
+
+    if (!currentUser) {
       return NextResponse.json(
         { error: "User tidak ditemukan" },
         { status: 404 },
       );
     }
 
-    return NextResponse.json({ success: true, user: updatedUser });
+    if (currentUser.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const parsed = schema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid input", detail: parsed.error },
+        { status: 400 },
+      );
+    }
+
+    const role = parsed.data.role;
+    const stages = ROLE_STAGE_MAP[role];
+
+    const updatedUser = await User.findOneAndUpdate(
+      { clerkId: id },
+      { role, stages },
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
+
+    if (!updatedUser) {
+      return NextResponse.json(
+        { error: "User tidak ditemukan" },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      user: updatedUser,
+    });
   } catch (error: any) {
-    console.error("❌ API Route Error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("API Error:", error.message);
+
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
