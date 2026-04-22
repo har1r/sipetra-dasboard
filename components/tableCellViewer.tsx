@@ -19,44 +19,86 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { createTask } from "@/lib/actions/task-actions";
-import { taskSchema } from "./task-table";
+import {
+  taskSchema,
+  initialTaskForm,
+  serviceTypeEnum,
+  stageEnum,
+  statusEnum,
+  baseDataFieldMeta,
+  requestedDataFieldMeta,
+  addRequestedDataFieldMeta,
+} from "@/lib/constants/initialTask";
+
+type Task = z.infer<typeof taskSchema>;
+
+const TABS = [
+  { id: "info", label: "Info", icon: FileText },
+  { id: "base", label: "WP Lama", icon: User },
+  { id: "requested", label: "Objek Baru", icon: Layers },
+  { id: "docs", label: "Lampiran", icon: LinkIcon },
+] as const;
 
 export default function TableCellViewer({
   item,
   open: controlledOpen,
   onOpenChange,
 }: {
-  item: Partial<z.infer<typeof taskSchema>>;
+  item: Partial<Task>;
   open?: boolean;
   onOpenChange?: (val: boolean) => void;
 }) {
   const isMobile = useIsMobile();
-  const [isHydrated, setIsHydrated] = React.useState(false);
-  const [open, setOpen] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState<
-    "info" | "base" | "requested" | "changes" | "docs" | "dynamic"
-  >("info");
 
-  const [form, setForm] = React.useState<Partial<z.infer<typeof taskSchema>>>(
-    item || {},
+  const [open, setOpen] = React.useState(false);
+  const currentOpen = controlledOpen ?? open;
+
+  const [activeTab, setActiveTab] =
+    React.useState<(typeof TABS)[number]["id"]>("info");
+
+  const safeInitial = React.useMemo(
+    () => ({
+      ...initialTaskForm,
+      ...item,
+      baseData: {
+        ...initialTaskForm.baseData,
+        ...(item.baseData ?? {}),
+      },
+      requestedData: {
+        ...initialTaskForm.requestedData,
+        ...(item.requestedData ?? {}),
+      },
+      requestedChanges: item.requestedChanges ?? [],
+      attachments: item.attachments ?? [],
+      approvals: item.approvals ?? [],
+      dynamicFields: item.dynamicFields ?? {},
+      revisedHistories: item.revisedHistories ?? [],
+    }),
+    [item],
   );
+
+  const [form, setForm] = React.useState<Partial<Task>>(safeInitial);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  React.useEffect(() => setIsHydrated(true), []);
-  React.useEffect(() => setForm(item || {}), [item]);
+  React.useEffect(() => {
+    setForm(safeInitial);
+  }, [safeInitial]);
 
-  if (!isHydrated) return null;
+  const handleOpenChange = (val: boolean) => {
+    setOpen(val);
+    onOpenChange?.(val);
+  };
 
   const handleChange = (path: string, value: any) => {
     setForm((prev) => {
-      const updated = { ...prev };
+      const updated: any = structuredClone(prev);
       const keys = path.split(".");
-      let obj: any = updated;
+      let obj = updated;
 
-      keys.slice(0, -1).forEach((key) => {
-        if (!obj[key]) obj[key] = {};
-        obj = obj[key];
-      });
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!obj[keys[i]]) obj[keys[i]] = {};
+        obj = obj[keys[i]];
+      }
 
       obj[keys[keys.length - 1]] = value;
       return updated;
@@ -67,7 +109,7 @@ export default function TableCellViewer({
     setForm((prev) => ({
       ...prev,
       requestedChanges: [
-        ...(prev.requestedChanges || []),
+        ...(prev.requestedChanges ?? []),
         {
           taxpayerName: "",
           taxpayerAddress: "",
@@ -85,11 +127,9 @@ export default function TableCellViewer({
 
   const removeRequestedChange = (index: number) => {
     setForm((prev) => {
-      const updated = { ...prev };
-      const arr = [...(updated.requestedChanges || [])];
+      const arr = [...(prev.requestedChanges ?? [])];
       arr.splice(index, 1);
-      updated.requestedChanges = arr;
-      return updated;
+      return { ...prev, requestedChanges: arr };
     });
   };
 
@@ -97,7 +137,7 @@ export default function TableCellViewer({
     setForm((prev) => ({
       ...prev,
       attachments: [
-        ...(prev.attachments || []),
+        ...(prev.attachments ?? []),
         { driveLink: "", linkName: "" },
       ],
     }));
@@ -105,11 +145,9 @@ export default function TableCellViewer({
 
   const removeAttachment = (index: number) => {
     setForm((prev) => {
-      const updated = { ...prev };
-      const arr = [...(updated.attachments || [])];
+      const arr = [...(prev.attachments ?? [])];
       arr.splice(index, 1);
-      updated.attachments = arr;
-      return updated;
+      return { ...prev, attachments: arr };
     });
   };
 
@@ -117,7 +155,7 @@ export default function TableCellViewer({
     setForm((prev) => ({
       ...prev,
       dynamicFields: {
-        ...(prev.dynamicFields || {}),
+        ...(prev.dynamicFields ?? {}),
         [""]: "",
       },
     }));
@@ -127,7 +165,7 @@ export default function TableCellViewer({
     setForm((prev) => ({
       ...prev,
       dynamicFields: {
-        ...(prev.dynamicFields || {}),
+        ...(prev.dynamicFields ?? {}),
         [key]: value,
       },
     }));
@@ -135,37 +173,26 @@ export default function TableCellViewer({
 
   const removeDynamicField = (key: string) => {
     setForm((prev) => {
-      const updated = { ...(prev.dynamicFields || {}) };
-      delete updated[key];
-      return { ...prev, dynamicFields: updated };
+      const copy = { ...(prev.dynamicFields ?? {}) };
+      delete copy[key];
+      return { ...prev, dynamicFields: copy };
     });
   };
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      const result = await createTask(form);
-      if (result.success) setOpen(false);
+      const parsed = taskSchema.safeParse(form);
+      if (!parsed.success) return;
+
+      const result = await createTask(parsed.data);
+      if (result?.success) handleOpenChange(false);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const TABS = [
-    { id: "info", label: "Info", icon: FileText },
-    { id: "base", label: "WP Lama", icon: User },
-    { id: "requested", label: "Objek Baru", icon: Layers },
-    { id: "changes", label: "Perubahan", icon: Layers },
-    { id: "docs", label: "Lampiran", icon: LinkIcon },
-    { id: "dynamic", label: "Dynamic", icon: FileText },
-  ] as const;
-
-  const currentOpen = controlledOpen ?? open;
-
-  const handleOpenChange = (val: boolean) => {
-    setOpen(val);
-    onOpenChange?.(val);
-  };
+  if (!form) return null;
 
   return (
     <Drawer
@@ -182,159 +209,248 @@ export default function TableCellViewer({
       <DrawerContent className="flex flex-col h-full max-h-screen">
         <DrawerHeader className="px-4 border-b">
           <DrawerTitle>
-            {form?.baseData?.taxpayerName || "Detail Task"}
+            {form.baseData?.taxpayerName || "Detail Task"}
           </DrawerTitle>
         </DrawerHeader>
 
-        {/* MAIN LAYOUT */}
         <div className="flex flex-1 overflow-hidden">
-
-          {/* NAV ICON ONLY */}
           <div className="w-16 border-r bg-muted/30 flex flex-col items-center py-2 gap-3">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                title={tab.label}
-                className={`relative group p-2 rounded-lg transition ${
-                  activeTab === tab.id
-                    ? "bg-primary text-white"
-                    : "hover:bg-muted"
+                className={`p-2 rounded-lg ${
+                  activeTab === tab.id ? "bg-primary text-white" : ""
                 }`}
               >
                 <tab.icon className="w-5 h-5" />
-
-                {/* hover label */}
-                <span className="absolute left-14 top-1/2 -translate-y-1/2 whitespace-nowrap bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition">
-                  {tab.label}
-                </span>
               </button>
             ))}
           </div>
 
-          {/* CONTENT */}
           <div className="flex-1 overflow-y-auto p-5 space-y-6">
-
-            {/* INFO */}
             {activeTab === "info" && (
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <Label>Service Type</Label>
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">
+                    Jenis Layanan
+                  </Label>
                   <Input
-                    value={form.serviceType || ""}
+                    value={form.serviceType ?? ""}
                     onChange={(e) =>
                       handleChange("serviceType", e.target.value)
                     }
+                    className="h-9"
                   />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <Label>NOP</Label>
-                    <Input
-                      value={form.nop || ""}
-                      onChange={(e) => handleChange("nop", e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label>NOPEL</Label>
-                    <Input
-                      value={form.nopel || ""}
-                      onChange={(e) => handleChange("nopel", e.target.value)}
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">
+                    Nomor Pelayanan
+                  </Label>
+                  <Input
+                    value={form.nopel ?? ""}
+                    onChange={(e) => handleChange("nopel", e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">
+                    Nomor Objek Pajak
+                  </Label>
+                  <Input
+                    value={form.nop ?? ""}
+                    onChange={(e) => handleChange("nop", e.target.value)}
+                    className="h-9"
+                  />
                 </div>
               </div>
             )}
 
-            {/* BASE */}
             {activeTab === "base" && (
-              <div className="grid grid-cols-2 gap-4">
-                {Object.entries(form.baseData || {}).map(([key, val]) => (
-                  <div key={key} className="space-y-1">
-                    <Label className="text-xs">{key}</Label>
-                    <Input
-                      value={val as any}
-                      onChange={(e) =>
-                        handleChange(`baseData.${key}`, e.target.value)
-                      }
-                    />
-                  </div>
-                ))}
+              <div className="space-y-10">
+                {["wp", "op", "size"].map((section) => {
+                  const sectionTitle =
+                    section === "wp"
+                      ? "Data Wajib Pajak SPPT"
+                      : section === "op"
+                        ? "Data Objek Pajak SPPT"
+                        : "Luas Bangunan & Tanah SPPT";
+
+                  const fields = Object.keys(baseDataFieldMeta).filter(
+                    (key) => baseDataFieldMeta[key].section === section,
+                  );
+
+                  return (
+                    <div key={section} className="space-y-5">
+                      <div className="flex items-center gap-3">
+                        <div className="h-px flex-1 bg-border" />
+                        <span className="text-xs font-medium text-muted-foreground tracking-wider">
+                          {sectionTitle}
+                        </span>
+                        <div className="h-px flex-1 bg-border" />
+                      </div>
+
+                      <div className="space-y-4">
+                        {fields.map((key) => {
+                          const typedKey =
+                            key as keyof typeof baseDataFieldMeta;
+
+                          const meta = baseDataFieldMeta[typedKey];
+                          const val =
+                            form.baseData?.[key as keyof typeof form.baseData];
+
+                          return (
+                            <div
+                              key={key}
+                              className="grid grid-cols-1 md:grid-cols-3 items-center gap-4"
+                            >
+                              <Label className="text-xs text-muted-foreground md:col-span-1">
+                                {meta.label}
+                              </Label>
+
+                              <Input
+                                className="h-9 md:col-span-2"
+                                value={String(val ?? "")}
+                                onChange={(e) =>
+                                  handleChange(
+                                    `baseData.${key}`,
+                                    e.target.value,
+                                  )
+                                }
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
-            {/* REQUESTED */}
             {activeTab === "requested" && (
-              <div className="grid grid-cols-2 gap-4">
-                {Object.entries(form.requestedData || {}).map(([key, val]) => (
-                  <div key={key} className="space-y-1">
-                    <Label className="text-xs">{key}</Label>
-                    <Input
-                      value={val as any}
-                      onChange={(e) =>
-                        handleChange(`requestedData.${key}`, e.target.value)
-                      }
-                    />
+              <div className="space-y-10">
+                {/* ================= OP SECTION ================= */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-border" />
+                    <span className="text-xs font-medium text-muted-foreground tracking-wider">
+                      Data Objek Pajak Baru
+                    </span>
+                    <div className="h-px flex-1 bg-border" />
                   </div>
-                ))}
-              </div>
-            )}
 
-            {/* CHANGES */}
-            {activeTab === "changes" && (
-              <div className="space-y-4">
-                <Button size="sm" onClick={addRequestedChange}>
-                  Tambah
-                </Button>
+                  <div className="space-y-4">
+                    {Object.keys(requestedDataFieldMeta).map((key) => {
+                      const meta =
+                        requestedDataFieldMeta[
+                          key as keyof typeof requestedDataFieldMeta
+                        ];
+                      const val =
+                        form.requestedData?.[
+                          key as keyof typeof form.requestedData
+                        ];
 
-                {(form.requestedChanges || []).map((item, i) => (
-                  <div
-                    key={i}
-                    className="border rounded-xl p-4 space-y-3 bg-muted/20"
-                  >
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => removeRequestedChange(i)}
-                    >
-                      Hapus
-                    </Button>
+                      return (
+                        <div
+                          key={key}
+                          className="grid grid-cols-1 md:grid-cols-3 items-center gap-4"
+                        >
+                          <Label className="text-xs text-muted-foreground md:col-span-1">
+                            {meta.label}
+                          </Label>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      {Object.entries(item || {}).map(([key, val]) => (
-                        <div key={key} className="space-y-1">
-                          <Label className="text-xs">{key}</Label>
                           <Input
-                            value={val as any}
+                            className="h-9 md:col-span-2"
+                            value={String(val ?? "")}
                             onChange={(e) =>
                               handleChange(
-                                `requestedChanges.${i}.${key}`,
+                                `requestedData.${key}`,
                                 e.target.value,
                               )
                             }
                           />
                         </div>
-                      ))}
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* ================= CHANGES SECTION ================= */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="h-px flex-1 bg-border" />
+                      <span className="text-xs font-medium text-muted-foreground tracking-wider">
+                        Perubahan Data WP & OP
+                      </span>
+                      <div className="h-px flex-1 bg-border" />
                     </div>
                   </div>
-                ))}
+                  <Button size="sm" onClick={addRequestedChange}>
+                    Tambah
+                  </Button>
+
+                  <div className="space-y-6">
+                    {(form.requestedChanges ?? []).map((item, i) => (
+                      <div
+                        key={i}
+                        className="border rounded-xl p-5 space-y-4 bg-muted/20"
+                      >
+                        <div className="flex justify-end">
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => removeRequestedChange(i)}
+                          >
+                            Hapus
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4">
+                          {Object.keys(addRequestedDataFieldMeta).map((key) => {
+                            const meta =
+                              addRequestedDataFieldMeta[
+                                key as keyof typeof addRequestedDataFieldMeta
+                              ];
+
+                            const val = item?.[key as keyof typeof item];
+
+                            return (
+                              <div key={key} className="space-y-2">
+                                <Label className="text-xs text-muted-foreground">
+                                  {meta.label}
+                                </Label>
+
+                                <Input
+                                  className="h-9"
+                                  value={String(val ?? "")}
+                                  onChange={(e) =>
+                                    handleChange(
+                                      `requestedChanges.${i}.${key}`,
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* DOCS */}
             {activeTab === "docs" && (
               <div className="space-y-4">
-                <Button size="sm" onClick={addAttachment}>
-                  Tambah
-                </Button>
+                <Button onClick={addAttachment}>Tambah</Button>
 
-                {(form.attachments || []).map((att, i) => (
-                  <div key={i} className="space-y-3 border p-3 rounded-xl">
+                {(form.attachments ?? []).map((att, i) => (
+                  <div key={i} className="space-y-2">
                     <Input
-                      placeholder="Nama"
-                      value={att.linkName || ""}
+                      value={att.linkName ?? ""}
                       onChange={(e) =>
                         handleChange(
                           `attachments.${i}.linkName`,
@@ -343,8 +459,7 @@ export default function TableCellViewer({
                       }
                     />
                     <Input
-                      placeholder="Link"
-                      value={att.driveLink || ""}
+                      value={att.driveLink ?? ""}
                       onChange={(e) =>
                         handleChange(
                           `attachments.${i}.driveLink`,
@@ -352,43 +467,11 @@ export default function TableCellViewer({
                         )
                       }
                     />
-                    <Button onClick={() => removeAttachment(i)}>
-                      Hapus
-                    </Button>
+                    <Button onClick={() => removeAttachment(i)}>Hapus</Button>
                   </div>
                 ))}
               </div>
             )}
-
-            {/* DYNAMIC */}
-            {activeTab === "dynamic" && (
-              <div className="space-y-4">
-                <Button size="sm" onClick={addDynamicField}>
-                  Tambah
-                </Button>
-
-                {Object.entries(form.dynamicFields || {}).map(([key, val]) => (
-                  <div key={key} className="flex gap-2">
-                    <Input
-                      value={key}
-                      onChange={(e) =>
-                        handleDynamicChange(e.target.value, val)
-                      }
-                    />
-                    <Input
-                      value={val as any}
-                      onChange={(e) =>
-                        handleDynamicChange(key, e.target.value)
-                      }
-                    />
-                    <Button onClick={() => removeDynamicField(key)}>
-                      Hapus
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-
           </div>
         </div>
 
