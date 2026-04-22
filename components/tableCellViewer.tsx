@@ -17,18 +17,28 @@ import {
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { createTask } from "@/lib/actions/task-actions";
 import {
   taskSchema,
   initialTaskForm,
+  serviceTypeOptions,
   serviceTypeEnum,
   stageEnum,
   statusEnum,
   baseDataFieldMeta,
   requestedDataFieldMeta,
   addRequestedDataFieldMeta,
+  taskAttachmentFieldMeta,
 } from "@/lib/constants/initialTask";
+import { LIST_KECAMATAN, KECAMATAN_DATA } from "@/lib/constants/region";
 
 type Task = z.infer<typeof taskSchema>;
 
@@ -235,13 +245,25 @@ export default function TableCellViewer({
                   <Label className="text-xs text-muted-foreground">
                     Jenis Layanan
                   </Label>
-                  <Input
+
+                  <Select
                     value={form.serviceType ?? ""}
-                    onChange={(e) =>
-                      handleChange("serviceType", e.target.value)
+                    onValueChange={(value) =>
+                      handleChange("serviceType", value)
                     }
-                    className="h-9"
-                  />
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Pilih jenis layanan" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {serviceTypeOptions.map((item) => (
+                        <SelectItem key={item} value={item}>
+                          {item}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">
@@ -294,10 +316,86 @@ export default function TableCellViewer({
                         {fields.map((key) => {
                           const typedKey =
                             key as keyof typeof baseDataFieldMeta;
-
                           const meta = baseDataFieldMeta[typedKey];
                           const val =
                             form.baseData?.[key as keyof typeof form.baseData];
+
+                          if (key === "taxObjectSubdistrict") {
+                            return (
+                              <div
+                                key={key}
+                                className="grid grid-cols-1 md:grid-cols-3 items-center gap-4"
+                              >
+                                <Label className="text-xs text-muted-foreground md:col-span-1">
+                                  {meta.label}
+                                </Label>
+
+                                <Select
+                                  value={String(val ?? "")}
+                                  onValueChange={(value) => {
+                                    handleChange(`baseData.${key}`, value);
+                                    handleChange(
+                                      `baseData.taxObjectVillage`,
+                                      "",
+                                    );
+                                  }}
+                                >
+                                  <SelectTrigger className="h-9 md:col-span-2">
+                                    <SelectValue placeholder="Pilih Kecamatan" />
+                                  </SelectTrigger>
+
+                                  <SelectContent>
+                                    {LIST_KECAMATAN.map((kec) => (
+                                      <SelectItem key={kec} value={kec}>
+                                        {kec}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            );
+                          }
+
+                          if (key === "taxObjectVillage") {
+                            const selectedKecamatan = form.baseData
+                              ?.taxObjectSubdistrict as keyof typeof KECAMATAN_DATA;
+
+                            const desaList =
+                              (selectedKecamatan &&
+                                KECAMATAN_DATA[selectedKecamatan]) ||
+                              [];
+
+                            return (
+                              <div
+                                key={key}
+                                className="grid grid-cols-1 md:grid-cols-3 items-center gap-4"
+                              >
+                                <Label className="text-xs text-muted-foreground md:col-span-1">
+                                  {meta.label}
+                                </Label>
+
+                                <Select
+                                  value={String(val ?? "")}
+                                  onValueChange={(value) =>
+                                    handleChange(`baseData.${key}`, value)
+                                  }
+                                  disabled={!selectedKecamatan}
+                                >
+                                  <SelectTrigger className="h-9 md:col-span-2">
+                                    <SelectValue placeholder="Pilih Desa" />
+                                  </SelectTrigger>
+
+                                  <SelectContent>
+                                    {desaList.map((desa) => (
+                                      <SelectItem key={desa} value={desa}>
+                                        {desa}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            );
+                          }
 
                           return (
                             <div
@@ -346,10 +444,88 @@ export default function TableCellViewer({
                         requestedDataFieldMeta[
                           key as keyof typeof requestedDataFieldMeta
                         ];
+
                       const val =
                         form.requestedData?.[
                           key as keyof typeof form.requestedData
                         ];
+
+                      if (key === "taxObjectSubdistrict") {
+                        return (
+                          <div
+                            key={key}
+                            className="grid grid-cols-1 md:grid-cols-3 items-center gap-4"
+                          >
+                            <Label className="text-xs text-muted-foreground md:col-span-1">
+                              {meta.label}
+                            </Label>
+
+                            <Select
+                              value={String(val ?? "")}
+                              onValueChange={(value) => {
+                                handleChange(`requestedData.${key}`, value);
+                                handleChange(
+                                  `requestedData.taxObjectVillage`,
+                                  "",
+                                );
+                              }}
+                            >
+                              <SelectTrigger className="h-9 md:col-span-2">
+                                <SelectValue placeholder="Pilih Kecamatan" />
+                              </SelectTrigger>
+
+                              <SelectContent>
+                                {LIST_KECAMATAN.map((kec) => (
+                                  <SelectItem key={kec} value={kec}>
+                                    {kec}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        );
+                      }
+
+                      if (key === "taxObjectVillage") {
+                        const selectedKecamatan = form.requestedData
+                          ?.taxObjectSubdistrict as keyof typeof KECAMATAN_DATA;
+
+                        const desaList =
+                          (selectedKecamatan &&
+                            KECAMATAN_DATA[selectedKecamatan]) ||
+                          [];
+
+                        return (
+                          <div
+                            key={key}
+                            className="grid grid-cols-1 md:grid-cols-3 items-center gap-4"
+                          >
+                            <Label className="text-xs text-muted-foreground md:col-span-1">
+                              {meta.label}
+                            </Label>
+
+                            <Select
+                              value={String(val ?? "")}
+                              onValueChange={(value) =>
+                                handleChange(`requestedData.${key}`, value)
+                              }
+                              disabled={!selectedKecamatan}
+                            >
+                              <SelectTrigger className="h-9 md:col-span-2">
+                                <SelectValue placeholder="Pilih Desa" />
+                              </SelectTrigger>
+
+                              <SelectContent>
+                                {desaList.map((desa) => (
+                                  <SelectItem key={desa} value={desa}>
+                                    {desa}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        );
+                      }
 
                       return (
                         <div
@@ -387,6 +563,7 @@ export default function TableCellViewer({
                       <div className="h-px flex-1 bg-border" />
                     </div>
                   </div>
+
                   <Button size="sm" onClick={addRequestedChange}>
                     Tambah
                   </Button>
@@ -395,7 +572,7 @@ export default function TableCellViewer({
                     {(form.requestedChanges ?? []).map((item, i) => (
                       <div
                         key={i}
-                        className="border rounded-xl p-5 space-y-4 bg-muted/20"
+                        className="border rounded-xl p-5 space-y-6 bg-muted/20"
                       >
                         <div className="flex justify-end">
                           <Button
@@ -407,35 +584,68 @@ export default function TableCellViewer({
                           </Button>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-4">
-                          {Object.keys(addRequestedDataFieldMeta).map((key) => {
-                            const meta =
+                        {["wp", "size", "info"].map((section) => {
+                          const sectionTitle =
+                            section === "wp"
+                              ? "Data Wajib Pajak Baru"
+                              : section === "size"
+                                ? "Luas Tanah & Bangunan"
+                                : "Informasi Tambahan";
+
+                          const fields = Object.keys(
+                            addRequestedDataFieldMeta,
+                          ).filter(
+                            (key) =>
                               addRequestedDataFieldMeta[
                                 key as keyof typeof addRequestedDataFieldMeta
-                              ];
+                              ].section === section,
+                          );
 
-                            const val = item?.[key as keyof typeof item];
-
-                            return (
-                              <div key={key} className="space-y-2">
-                                <Label className="text-xs text-muted-foreground">
-                                  {meta.label}
-                                </Label>
-
-                                <Input
-                                  className="h-9"
-                                  value={String(val ?? "")}
-                                  onChange={(e) =>
-                                    handleChange(
-                                      `requestedChanges.${i}.${key}`,
-                                      e.target.value,
-                                    )
-                                  }
-                                />
+                          return (
+                            <div key={section} className="space-y-4">
+                              <div className="flex items-center gap-3">
+                                <div className="h-px flex-1 bg-border" />
+                                <span className="text-xs font-medium text-muted-foreground tracking-wider">
+                                  {sectionTitle}
+                                </span>
+                                <div className="h-px flex-1 bg-border" />
                               </div>
-                            );
-                          })}
-                        </div>
+
+                              <div className="space-y-4">
+                                {fields.map((key) => {
+                                  const meta =
+                                    addRequestedDataFieldMeta[
+                                      key as keyof typeof addRequestedDataFieldMeta
+                                    ];
+
+                                  const val = item?.[key as keyof typeof item];
+
+                                  return (
+                                    <div
+                                      key={key}
+                                      className="grid grid-cols-1 md:grid-cols-3 items-center gap-4"
+                                    >
+                                      <Label className="text-xs text-muted-foreground md:col-span-1">
+                                        {meta.label}
+                                      </Label>
+
+                                      <Input
+                                        className="h-9 md:col-span-2"
+                                        value={String(val ?? "")}
+                                        onChange={(e) =>
+                                          handleChange(
+                                            `requestedChanges.${i}.${key}`,
+                                            e.target.value,
+                                          )
+                                        }
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     ))}
                   </div>
@@ -444,32 +654,97 @@ export default function TableCellViewer({
             )}
 
             {activeTab === "docs" && (
-              <div className="space-y-4">
-                <Button onClick={addAttachment}>Tambah</Button>
-
-                {(form.attachments ?? []).map((att, i) => (
-                  <div key={i} className="space-y-2">
-                    <Input
-                      value={att.linkName ?? ""}
-                      onChange={(e) =>
-                        handleChange(
-                          `attachments.${i}.linkName`,
-                          e.target.value,
-                        )
-                      }
-                    />
-                    <Input
-                      value={att.driveLink ?? ""}
-                      onChange={(e) =>
-                        handleChange(
-                          `attachments.${i}.driveLink`,
-                          e.target.value,
-                        )
-                      }
-                    />
-                    <Button onClick={() => removeAttachment(i)}>Hapus</Button>
+              <div className="space-y-8">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="h-px flex-1 bg-border" />
+                    <span className="text-xs font-medium text-muted-foreground tracking-wider">
+                      Lampiran Dokumen
+                    </span>
+                    <div className="h-px flex-1 bg-border" />
                   </div>
-                ))}
+                </div>
+
+                <Button size="sm" onClick={addAttachment}>
+                  Tambah
+                </Button>
+
+                <div className="space-y-6">
+                  {(form.attachments ?? []).map((att, i) => (
+                    <div
+                      key={i}
+                      className="border rounded-xl p-5 space-y-6 bg-muted/20"
+                    >
+                      <div className="flex justify-end">
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => removeAttachment(i)}
+                        >
+                          Hapus
+                        </Button>
+                      </div>
+
+                      <div className="space-y-6">
+                        {["main"].map((section) => {
+                          const fields = Object.keys(
+                            taskAttachmentFieldMeta,
+                          ).filter(
+                            (key) =>
+                              taskAttachmentFieldMeta[
+                                key as keyof typeof taskAttachmentFieldMeta
+                              ].section === section,
+                          );
+
+                          return (
+                            <div key={section} className="space-y-4">
+                              <div className="flex items-center gap-3">
+                                <div className="h-px flex-1 bg-border" />
+                                <span className="text-xs font-medium text-muted-foreground tracking-wider">
+                                  Detail Dokumen
+                                </span>
+                                <div className="h-px flex-1 bg-border" />
+                              </div>
+
+                              <div className="space-y-4">
+                                {fields.map((key) => {
+                                  const meta =
+                                    taskAttachmentFieldMeta[
+                                      key as keyof typeof taskAttachmentFieldMeta
+                                    ];
+
+                                  const val = att?.[key as keyof typeof att];
+
+                                  return (
+                                    <div
+                                      key={key}
+                                      className="grid grid-cols-1 md:grid-cols-3 items-center gap-4"
+                                    >
+                                      <Label className="text-xs text-muted-foreground md:col-span-1">
+                                        {meta.label}
+                                      </Label>
+
+                                      <Input
+                                        className="h-9 md:col-span-2"
+                                        value={String(val ?? "")}
+                                        onChange={(e) =>
+                                          handleChange(
+                                            `attachments.${i}.${key}`,
+                                            e.target.value,
+                                          )
+                                        }
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

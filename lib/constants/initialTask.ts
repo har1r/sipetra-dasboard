@@ -15,6 +15,15 @@ export const stageEnum = z.enum([
   "pemeriksaan",
 ]);
 
+export const serviceTypeOptions = [
+  "pengaktifan",
+  "mutasi habis update",
+  "mutasi habis reguler",
+  "mutasi sebagian",
+  "pembetulan",
+  "objek pajak baru",
+] as const;
+
 export const serviceTypeEnum = z.enum([
   "pengaktifan",
   "mutasi habis update",
@@ -157,8 +166,8 @@ export const baseDataFieldMeta: Record<
   taxpayerSubdistrict: { label: "Kecamatan", section: "wp" },
 
   taxObjectAddress: { label: "Alamat", section: "op" },
-  taxObjectVillage: { label: "Desa", section: "op" },
   taxObjectSubdistrict: { label: "Kecamatan", section: "op" },
+  taxObjectVillage: { label: "Desa", section: "op" },
 
   landArea: { label: "Luas Tanah", section: "size" },
   buildingArea: { label: "Luas Bangunan", section: "size" },
@@ -172,12 +181,12 @@ export const requestedDataFieldMeta: Record<
     label: "Alamat OP Baru",
     section: "op",
   },
-  taxObjectVillage: {
-    label: "Desa OP Baru",
-    section: "op",
-  },
   taxObjectSubdistrict: {
     label: "Kecamatan OP Baru",
+    section: "op",
+  },
+  taxObjectVillage: {
+    label: "Desa OP Baru",
     section: "op",
   },
 };
@@ -194,12 +203,12 @@ export const addRequestedDataFieldMeta: Record<
     label: "Alamat WP Baru",
     section: "wp",
   },
-  taxpayerVillage: {
-    label: "Desa WP Baru",
-    section: "wp",
-  },
   taxpayerSubdistrict: {
     label: "Kecamatan WP Baru",
+    section: "wp",
+  },
+  taxpayerVillage: {
+    label: "Desa WP Baru",
     section: "wp",
   },
 
@@ -220,4 +229,12 @@ export const addRequestedDataFieldMeta: Record<
     label: "Catatan",
     section: "info",
   },
+};
+
+export const taskAttachmentFieldMeta: Record<
+  string,
+  { label: string; section: "main" }
+> = {
+  linkName: { label: "Nama Dokumen", section: "main" },
+  driveLink: { label: "Link Dokumen", section: "main" },
 };
