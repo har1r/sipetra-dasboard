@@ -2,64 +2,61 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import { Task } from "@/models/task";
 import { requireRole } from "@/lib/auth/requireRole";
-import { z } from "zod";
+import { createTaskSchema } from "@/lib/constants/initialTask";
 import { ITaskApproval } from "@/models/task";
 
-export const createTaskSchema = z.object({
-  serviceType: z.string().min(1),
+export async function GET(req: Request) {
+  try {
+    await requireRole([
+      "admin",
+      "penginput",
+      "peneliti",
+      "pengarsip",
+      "pengirim",
+      "pemeriksa",
+    ]);
 
-  nopel: z.string().min(1),
-  nop: z.string().min(1),
+    await connectDB();
 
-  baseData: z.object({
-    taxpayerName: z.string().min(1),
-    taxpayerAddress: z.string().min(1),
-    taxpayerVillage: z.string().min(1),
-    taxpayerSubdistrict: z.string().min(1),
-    taxObjectAddress: z.string().min(1),
-    taxObjectVillage: z.string().min(1),
-    taxObjectSubdistrict: z.string().min(1),
-    landArea: z.coerce.number().min(0),
-    buildingArea: z.coerce.number().min(0),
-  }),
+    const tasks = await Task.find({}).sort({ createdAt: -1 }).lean();
 
-  requestedData: z.object({
-    taxObjectAddress: z.string().min(1),
-    taxObjectVillage: z.string().min(1),
-    taxObjectSubdistrict: z.string().min(1),
-  }),
+    return NextResponse.json({ success: true, data: tasks });
+  } catch (error: any) {
+    console.error("Get Tasks Error:", error.message);
 
-  requestedChanges: z.array(z.any()).optional(),
-  dynamicFields: z.record(z.string(), z.unknown()).optional(),
-  attachments: z.array(z.any()).optional(),
-});
+    if (error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (error.message === "Forbidden") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    return NextResponse.json(
+      { error: "Gagal mengambil data task" },
+      { status: 500 },
+    );
+  }
+}
 
 export async function POST(req: Request) {
   try {
     const user = await requireRole(["admin", "penginput"]);
+    console.log("Membuat task baru oleh user:", user);
 
     await connectDB();
 
     const raw = await req.json();
     const parsed = createTaskSchema.safeParse(raw);
+
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid input", detail: parsed.error },
+        { error: "Invalid input", detail: parsed.error.flatten() },
         { status: 400 },
       );
     }
 
-    const body = parsed.data;
-    const {
-      serviceType,
-      nopel,
-      nop,
-      baseData,
-      requestedData,
-      requestedChanges,
-      dynamicFields,
-      attachments,
-    } = body;
+    const data = parsed.data;
 
     const defaultApprovals: ITaskApproval[] = [
       {
@@ -104,29 +101,11 @@ export async function POST(req: Request) {
       },
     ];
 
-    const newTask = new Task({
-      serviceType,
-      nopel,
-      nop,
-      baseData: {
-        taxpayerName: baseData.taxpayerName,
-        taxpayerAddress: baseData.taxpayerAddress,
-        taxpayerVillage: baseData.taxpayerVillage,
-        taxpayerSubdistrict: baseData.taxpayerSubdistrict,
-        taxObjectAddress: baseData.taxObjectAddress,
-        taxObjectVillage: baseData.taxObjectVillage,
-        taxObjectSubdistrict: baseData.taxObjectSubdistrict,
-        landArea: baseData.landArea,
-        buildingArea: baseData.buildingArea,
-      },
-      requestedData: {
-        taxObjectAddress: requestedData.taxObjectAddress,
-        taxObjectVillage: requestedData.taxObjectVillage,
-        taxObjectSubdistrict: requestedData.taxObjectSubdistrict,
-      },
-      requestedChanges: requestedChanges || [],
-      dynamicFields: dynamicFields || {},
-      attachments: attachments || [],
+    const newTask = await Task.create({
+      ...data,
+      requestedChanges: data.requestedChanges ?? [],
+      dynamicFields: data.dynamicFields ?? {},
+      attachments: data.attachments ?? [],
       approvals: defaultApprovals,
       createdBy: user._id,
       currentStage: "penelitian",
@@ -134,12 +113,7 @@ export async function POST(req: Request) {
       isLocked: false,
     });
 
-    const savedTask = await newTask.save();
-
-    return NextResponse.json(
-      { success: true, data: savedTask },
-      { status: 201 },
-    );
+    return NextResponse.json({ success: true, data: newTask }, { status: 201 });
   } catch (error: any) {
     console.error("Create Task Error:", error.message);
 

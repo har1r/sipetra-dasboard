@@ -26,13 +26,10 @@ import {
   IconChevronRight,
   IconChevronsLeft,
   IconChevronsRight,
-  IconCircleCheckFilled,
   IconDotsVertical,
   IconGripVertical,
   IconLayoutColumns,
-  IconLoader,
   IconPlus,
-  IconTrendingUp,
 } from "@tabler/icons-react";
 import {
   ColumnDef,
@@ -49,30 +46,18 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
-import { toast } from "sonner";
 import { z } from "zod";
 
-import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -81,7 +66,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -90,7 +74,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -100,124 +83,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, User, LinkIcon } from "lucide-react";
+import { taskSchema } from "@/lib/constants/initialTask";
 
-import TableCellViewer from "./tableCellViewer";
-
-/* =========================
-   ENUMS
-========================= */
-const statusEnum = z.enum(["in_progress", "approved", "revised", "rejected"]);
-
-const stageEnum = z.enum([
-  "penginputan",
-  "penelitian",
-  "pengarsipan",
-  "pengiriman",
-  "pemeriksaan",
-]);
-
-const serviceTypeEnum = z.enum([
-  "pengaktifan",
-  "mutasi habis update",
-  "mutasi habis reguler",
-  "mutasi sebagian",
-  "pembetulan",
-  "objek pajak baru",
-]);
-
-/* =========================
-   SUB SCHEMAS
-========================= */
-
-export const taskAttachmentSchema = z.object({
-  driveLink: z.string(),
-  linkName: z.string(),
-  uploadedBy: z.string().optional(),
-  uploadedAt: z.date().nullable().optional(),
-});
-
-export const requestedDataSchema = z.object({
-  taxObjectAddress: z.string(),
-  taxObjectVillage: z.string(),
-  taxObjectSubdistrict: z.string(),
-});
-
-export const addRequestedDataSchema = z.object({
-  taxpayerName: z.string(),
-  taxpayerNameSearch: z.string().optional(),
-  taxpayerAddress: z.string(),
-  taxpayerVillage: z.string(),
-  taxpayerSubdistrict: z.string(),
-  landArea: z.number(),
-  buildingArea: z.number(),
-  certificate: z.string(),
-  status: statusEnum,
-  note: z.string().optional(),
-});
-
-export const taskApprovalSchema = z.object({
-  stageOrder: z.number(),
-  stage: stageEnum,
-  approvedBy: z.string().optional(),
-  approvedAt: z.date().nullable().optional(),
-  status: statusEnum,
-  note: z.string().optional(),
-});
-
-/* =========================
-   MAIN TASK SCHEMA
-========================= */
-
-export const taskSchema = z.object({
-  _id: z.string(),
-  serviceType: serviceTypeEnum,
-  nopel: z.string(),
-  nop: z.string(),
-
-  baseData: z.object({
-    taxpayerName: z.string(),
-    taxpayerNameSearch: z.string().optional(),
-    taxpayerAddress: z.string(),
-    taxpayerVillage: z.string(),
-    taxpayerSubdistrict: z.string(),
-    taxObjectAddress: z.string(),
-    taxObjectVillage: z.string(),
-    taxObjectSubdistrict: z.string(),
-    landArea: z.number(),
-    buildingArea: z.number(),
-  }),
-
-  requestedData: requestedDataSchema,
-  requestedChanges: z.array(addRequestedDataSchema),
-
-  dynamicFields: z.record(z.string(), z.any()),
-
-  attachments: z.array(taskAttachmentSchema),
-  approvals: z.array(taskApprovalSchema),
-
-  createdBy: z.string().optional(),
-  currentStage: stageEnum,
-  overallStatus: statusEnum,
-
-  reportId: z.string().optional(),
-
-  revisedHistories: z.array(
-    z.object({
-      revisedAct: z.string(),
-      revisedBy: z.string().optional(),
-      revisedNote: z.string(),
-      revisedAt: z.date(),
-      stageAtRevision: z.string(),
-      isResolved: z.boolean(),
-    }),
-  ),
-
-  isLocked: z.boolean(),
-
-  createdAt: z.date(),
-  updatedAt: z.date(),
-});
+import TableCellCreate from "./tableCellCreate";
 
 // Create a separate component for the drag handle
 function DragHandle({ id }: { id: string }) {
@@ -277,15 +145,15 @@ const columns: ColumnDef<z.infer<typeof taskSchema>>[] = [
     accessorKey: "nopel",
     header: "Nopel",
     cell: ({ row }) => {
-      return <TableCellViewer item={row.original} />;
+      return <TableCellCreate item={row.original} />;
     },
     enableHiding: false,
   },
 
   // 🔥 Service Type
   {
-    accessorKey: "serviceType",
-    header: "Service",
+    accessorKey: "jenis pelayanan",
+    header: "Jenis Pelayanan",
     cell: ({ row }) => (
       <Badge variant="outline" className="text-muted-foreground px-1.5">
         {row.original?.serviceType}
@@ -306,30 +174,106 @@ const columns: ColumnDef<z.infer<typeof taskSchema>>[] = [
 
   // 🔥 NOPEL
   {
-    accessorKey: "baseData?.taxpayerName",
-    header: "Old Taxpayer",
+    accessorKey: "nama wp lama",
+    header: "Nama WP Lama",
     cell: ({ row }) => (
       <Badge variant="outline" className="text-muted-foreground px-1.5">
         {row.original?.baseData?.taxpayerName}
       </Badge>
     ),
   },
-
-  // 🔥
   {
-    accessorKey: "requestedChanges",
-    header: "Taxpayer",
+    accessorKey: "nama wp baru",
+    header: "Nama WP Baru",
+    cell: ({ row }) => {
+      const changes = row.original?.requestedChanges || [];
+      const mainName = changes?.[0]?.taxpayerName;
+
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge className="px-2 py-0.5 cursor-pointer bg-secondary text-secondary-foreground dark:bg-secondary/70 dark:text-white">
+                {mainName || "-"}
+                <p>({row.original?.requestedChanges.length})</p>
+              </Badge>
+            </TooltipTrigger>
+
+            <TooltipContent className="w-80 p-0 overflow-hidden rounded-xl border border-border bg-background text-foreground shadow-xl">
+              <div className="grid grid-cols-3 text-xs font-semibold bg-muted dark:bg-muted/60 px-3 py-2">
+                <span className="text-foreground/80">Asal</span>
+                <span className="text-center text-foreground/80">Tanah</span>
+                <span className="text-right text-foreground/80">Bangunan</span>
+              </div>
+              <div className="grid grid-cols-3 px-3 py-2 text-sm hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors">
+                <span className="truncate font-medium text-foreground">
+                  {row.original?.baseData?.taxpayerName || "-"}
+                </span>
+                <span className="text-center font-medium text-foreground/80">
+                  {row.original?.baseData?.landArea ?? "-"}
+                </span>
+                <span className="text-right font-medium text-foreground/80">
+                  {row.original?.baseData?.buildingArea ?? "-"}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 text-xs font-semibold bg-muted dark:bg-muted/60 px-3 py-2">
+                <span className="text-foreground/80">Pecahan</span>
+                <span className="text-center text-foreground/80">Tanah</span>
+                <span className="text-right text-foreground/80">Bangunan</span>
+              </div>
+
+              {changes.length === 0 ? (
+                <div className="p-3 text-center text-sm text-muted-foreground">
+                  Tidak ada data
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {changes.map((item, index) => (
+                    <div
+                      key={index}
+                      className="grid grid-cols-3 px-3 py-2 text-sm hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors"
+                    >
+                      <span className="truncate font-medium text-foreground">
+                        {item.taxpayerName || "-"}
+                      </span>
+                      <span className="text-center font-medium text-foreground/80">
+                        {item.landArea ?? "-"}
+                      </span>
+                      <span className="text-right font-medium text-foreground/80">
+                        {item.buildingArea ?? "-"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    },
+  },
+  {
+    accessorKey: "kecamatan op",
+    header: "Kecamatan OP",
     cell: ({ row }) => (
       <Badge variant="outline" className="text-muted-foreground px-1.5">
-        {row.original?.requestedChanges?.[0]?.taxpayerName}
+        {row.original?.baseData?.taxObjectSubdistrict}
       </Badge>
     ),
   },
-
+  {
+    accessorKey: "desa op",
+    header: "Desa OP",
+    cell: ({ row }) => (
+      <Badge variant="outline" className="text-muted-foreground px-1.5">
+        {row.original?.baseData?.taxObjectVillage}
+      </Badge>
+    ),
+  },
   // 🔥 Current Stage
   {
-    accessorKey: "currentStage",
-    header: "Stage",
+    accessorKey: "tahapan",
+    header: "Tahapan",
     cell: ({ row }) => (
       <Badge variant="secondary">{row.original?.currentStage}</Badge>
     ),
@@ -337,7 +281,7 @@ const columns: ColumnDef<z.infer<typeof taskSchema>>[] = [
 
   // 🔥 Overall Status
   {
-    accessorKey: "overallStatus",
+    accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {
       const status = row.original?.overallStatus;
@@ -357,15 +301,23 @@ const columns: ColumnDef<z.infer<typeof taskSchema>>[] = [
 
   // 🔥 Created At
   {
-    accessorKey: "createdAt",
-    header: "Created",
-    cell: ({ row }) => (
-      <div className="text-sm text-muted-foreground">
-        {new Date(row.original?.createdAt).toLocaleDateString("id-ID", {
-          timeZone: "Asia/Jakarta",
-        })}
-      </div>
-    ),
+    accessorKey: "tgl diinput",
+    header: "Tgl Diinput",
+    cell: ({ row }) => {
+      const date = row.original?.createdAt
+        ? new Date(row.original.createdAt)
+        : null;
+
+      return (
+        <div className="text-sm text-muted-foreground">
+          {date
+            ? date.toLocaleDateString("id-ID", {
+                timeZone: "Asia/Jakarta",
+              })
+            : "-"}
+        </div>
+      );
+    },
   },
 
   // 🔥 Actions (tetap)
@@ -717,7 +669,7 @@ export function TaskTable({
         <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
       </TabsContent>
 
-      <TableCellViewer
+      <TableCellCreate
         item={rowSelection}
         open={openCreate}
         onOpenChange={setOpenCreate}

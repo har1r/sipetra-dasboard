@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LIST_KECAMATAN, LIST_DESA } from "@/lib/constants/region";
 
 export const statusEnum = z.enum([
   "in_progress",
@@ -24,101 +25,86 @@ export const serviceTypeOptions = [
   "objek pajak baru",
 ] as const;
 
-export const serviceTypeEnum = z.enum([
-  "pengaktifan",
-  "mutasi habis update",
-  "mutasi habis reguler",
-  "mutasi sebagian",
-  "pembetulan",
-  "objek pajak baru",
-]);
+export const serviceTypeEnum = z.enum(serviceTypeOptions);
+
+const kecamatanEnum = z.enum(LIST_KECAMATAN as [string, ...string[]]);
+
+const desaEnum = z.enum(LIST_DESA as [string, ...string[]]);
 
 export const taskAttachmentSchema = z.object({
-  driveLink: z.string(),
-  linkName: z.string(),
-  uploadedBy: z.string().optional(),
-  uploadedAt: z.coerce.date().nullable().optional(),
+  driveLink: z.string().min(1, "Wajib diisi"),
+  linkName: z.string().min(1, "Wajib diisi"),
 });
 
 export const requestedDataSchema = z.object({
-  taxObjectAddress: z.string(),
-  taxObjectVillage: z.string(),
-  taxObjectSubdistrict: z.string(),
+  taxObjectAddress: z.string().min(1, "Wajib diisi"),
+  taxObjectVillage: desaEnum,
+  taxObjectSubdistrict: kecamatanEnum,
 });
 
 export const addRequestedDataSchema = z.object({
-  taxpayerName: z.string(),
-  taxpayerNameSearch: z.string().optional(),
-  taxpayerAddress: z.string(),
-  taxpayerVillage: z.string(),
-  taxpayerSubdistrict: z.string(),
-  landArea: z.coerce.number(),
-  buildingArea: z.coerce.number(),
-  certificate: z.string(),
-});
-
-export const taskApprovalSchema = z.object({
-  stageOrder: z.number(),
-  stage: stageEnum,
-  approvedBy: z.string().optional(),
-  approvedAt: z.coerce.date().nullable().optional(),
-  status: statusEnum,
+  taxpayerName: z.string().min(1, "Wajib diisi"),
+  taxpayerAddress: z.string().min(1, "Wajib diisi"),
+  taxpayerVillage: z.string().min(1, "Wajib diisi"),
+  taxpayerSubdistrict: z.string().min(1, "Wajib diisi"),
+  landArea: z.coerce.number().min(1, "Wajib diisi"),
+  buildingArea: z.coerce.number().min(1, "Wajib diisi"),
+  certificate: z.string().min(1, "Wajib diisi"),
   note: z.string().optional(),
 });
 
 export const baseDataSchema = z.object({
-  taxpayerName: z.string(),
-  taxpayerNameSearch: z.string().optional(),
-  taxpayerAddress: z.string(),
-  taxpayerVillage: z.string(),
-  taxpayerSubdistrict: z.string(),
-  taxObjectAddress: z.string(),
-  taxObjectVillage: z.string(),
-  taxObjectSubdistrict: z.string(),
-  landArea: z.coerce.number(),
-  buildingArea: z.coerce.number(),
+  taxpayerName: z.string().min(1, "Wajib diisi"),
+  taxpayerAddress: z.string().min(1, "Wajib diisi"),
+  taxpayerVillage: z.string().min(1, "Wajib diisi"),
+  taxpayerSubdistrict: z.string().min(1, "Wajib diisi"),
+  taxObjectAddress: z.string().min(1, "Wajib diisi"),
+  taxObjectVillage: desaEnum,
+  taxObjectSubdistrict: kecamatanEnum,
+  landArea: z.coerce.number().min(1, "Wajib diisi"),
+  buildingArea: z.coerce.number().min(1, "Wajib diisi"),
 });
 
-export const taskSchema = z.object({
-  _id: z.string(),
-
+export const createTaskSchema = z.object({
   serviceType: serviceTypeEnum,
-  nopel: z.string(),
-  nop: z.string(),
+  nopel: z.string().min(1, "Wajib diisi"),
+  nop: z.string().min(1, "Wajib diisi"),
 
   baseData: baseDataSchema,
   requestedData: requestedDataSchema,
 
   requestedChanges: z.array(addRequestedDataSchema).default([]),
-  dynamicFields: z.record(z.string(), z.unknown()).default({}),
+  dynamicFields: z.record(z.string(), z.string()).default({}),
 
   attachments: z.array(taskAttachmentSchema).default([]),
-  approvals: z.array(taskApprovalSchema).default([]),
 
   createdBy: z.string().optional(),
 
-  currentStage: stageEnum,
-  overallStatus: statusEnum,
-
   reportId: z.string().optional(),
+});
 
-  revisedHistories: z
-    .array(
-      z.object({
-        revisedAct: z.string(),
-        revisedBy: z.string().optional(),
-        revisedNote: z.string(),
-        revisedAt: z.coerce.date(),
-        stageAtRevision: z.string(),
-        isResolved: z.boolean(),
-      }),
-    )
-    .default([]),
+export const taskSchema = createTaskSchema.extend({
+  _id: z.string(),
+
+  approvals: z.array(
+    z.object({
+      stageOrder: z.number(),
+      stage: z.string(),
+      status: z.enum(["approved", "rejected", "in_progress", "revised"]),
+      approvedBy: z.string().nullable().optional(),
+      approvedAt: z.date().nullable().optional(),
+      note: z.string().optional(),
+    }),
+  ),
+
+  currentStage: z.string(),
+
+  overallStatus: z.enum(["approved", "rejected", "in_progress", "revised"]),
 
   isLocked: z.boolean(),
 
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
 });
 
 export const initialTaskForm = {
@@ -147,14 +133,7 @@ export const initialTaskForm = {
   requestedChanges: [],
   dynamicFields: {},
   attachments: [],
-  approvals: [],
-  revisedHistories: [],
-
-  currentStage: "penginputan" as const,
-  overallStatus: "in_progress" as const,
-
-  isLocked: false,
-} satisfies Partial<z.infer<typeof taskSchema>>;
+} satisfies Partial<z.infer<typeof createTaskSchema>>;
 
 export const baseDataFieldMeta: Record<
   string,

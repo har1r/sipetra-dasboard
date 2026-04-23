@@ -27,20 +27,18 @@ import {
 
 import { createTask } from "@/lib/actions/task-actions";
 import {
-  taskSchema,
+  createTaskSchema,
   initialTaskForm,
   serviceTypeOptions,
-  serviceTypeEnum,
-  stageEnum,
-  statusEnum,
   baseDataFieldMeta,
   requestedDataFieldMeta,
   addRequestedDataFieldMeta,
   taskAttachmentFieldMeta,
 } from "@/lib/constants/initialTask";
 import { LIST_KECAMATAN, KECAMATAN_DATA } from "@/lib/constants/region";
+import { toast } from "sonner";
 
-type Task = z.infer<typeof taskSchema>;
+type Task = z.infer<typeof createTaskSchema>;
 
 const TABS = [
   { id: "info", label: "Info", icon: FileText },
@@ -49,7 +47,7 @@ const TABS = [
   { id: "docs", label: "Lampiran", icon: LinkIcon },
 ] as const;
 
-export default function TableCellViewer({
+export default function TableCellCreate({
   item,
   open: controlledOpen,
   onOpenChange,
@@ -80,9 +78,7 @@ export default function TableCellViewer({
       },
       requestedChanges: item.requestedChanges ?? [],
       attachments: item.attachments ?? [],
-      approvals: item.approvals ?? [],
       dynamicFields: item.dynamicFields ?? {},
-      revisedHistories: item.revisedHistories ?? [],
     }),
     [item],
   );
@@ -128,7 +124,6 @@ export default function TableCellViewer({
           landArea: 0,
           buildingArea: 0,
           certificate: "",
-          status: "in_progress",
           note: "",
         },
       ],
@@ -161,42 +156,24 @@ export default function TableCellViewer({
     });
   };
 
-  const addDynamicField = () => {
-    setForm((prev) => ({
-      ...prev,
-      dynamicFields: {
-        ...(prev.dynamicFields ?? {}),
-        [""]: "",
-      },
-    }));
-  };
-
-  const handleDynamicChange = (key: string, value: any) => {
-    setForm((prev) => ({
-      ...prev,
-      dynamicFields: {
-        ...(prev.dynamicFields ?? {}),
-        [key]: value,
-      },
-    }));
-  };
-
-  const removeDynamicField = (key: string) => {
-    setForm((prev) => {
-      const copy = { ...(prev.dynamicFields ?? {}) };
-      delete copy[key];
-      return { ...prev, dynamicFields: copy };
-    });
-  };
-
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      const parsed = taskSchema.safeParse(form);
-      if (!parsed.success) return;
+      const parsed = createTaskSchema.safeParse(form);
+
+      if (!parsed.success) {
+        toast.error("Form tidak valid");
+        return;
+      }
 
       const result = await createTask(parsed.data);
-      if (result?.success) handleOpenChange(false);
+
+      if (result?.success) {
+        toast.success("Task berhasil dibuat");
+        handleOpenChange(false);
+      } else {
+        toast.error("Gagal membuat task");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -212,18 +189,16 @@ export default function TableCellViewer({
     >
       <DrawerTrigger asChild>
         <Button variant="link" className="px-0">
-          {item?.baseData?.taxpayerName || "-"}
+          {item?.nopel || "-"}
         </Button>
       </DrawerTrigger>
 
       <DrawerContent className="flex flex-col h-full max-h-screen">
         <DrawerHeader className="px-4 border-b">
-          <DrawerTitle>
-            {form.baseData?.taxpayerName || "Detail Task"}
-          </DrawerTitle>
+          <DrawerTitle>Create Task</DrawerTitle>
         </DrawerHeader>
 
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 min-h-0">
           <div className="w-16 border-r bg-muted/30 flex flex-col items-center py-2 gap-3">
             {TABS.map((tab) => (
               <button
@@ -265,6 +240,7 @@ export default function TableCellViewer({
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">
                     Nomor Pelayanan
@@ -275,6 +251,7 @@ export default function TableCellViewer({
                     className="h-9"
                   />
                 </div>
+
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">
                     Nomor Objek Pajak
@@ -314,9 +291,10 @@ export default function TableCellViewer({
 
                       <div className="space-y-4">
                         {fields.map((key) => {
-                          const typedKey =
-                            key as keyof typeof baseDataFieldMeta;
-                          const meta = baseDataFieldMeta[typedKey];
+                          const meta =
+                            baseDataFieldMeta[
+                              key as keyof typeof baseDataFieldMeta
+                            ];
                           const val =
                             form.baseData?.[key as keyof typeof form.baseData];
 
@@ -428,7 +406,6 @@ export default function TableCellViewer({
 
             {activeTab === "requested" && (
               <div className="space-y-10">
-                {/* ================= OP SECTION ================= */}
                 <div className="space-y-6">
                   <div className="flex items-center gap-3">
                     <div className="h-px flex-1 bg-border" />
@@ -552,18 +529,7 @@ export default function TableCellViewer({
                   </div>
                 </div>
 
-                {/* ================= CHANGES SECTION ================= */}
                 <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 flex-1">
-                      <div className="h-px flex-1 bg-border" />
-                      <span className="text-xs font-medium text-muted-foreground tracking-wider">
-                        Perubahan Data WP & OP
-                      </span>
-                      <div className="h-px flex-1 bg-border" />
-                    </div>
-                  </div>
-
                   <Button size="sm" onClick={addRequestedChange}>
                     Tambah
                   </Button>
@@ -585,13 +551,6 @@ export default function TableCellViewer({
                         </div>
 
                         {["wp", "size", "info"].map((section) => {
-                          const sectionTitle =
-                            section === "wp"
-                              ? "Data Wajib Pajak Baru"
-                              : section === "size"
-                                ? "Luas Tanah & Bangunan"
-                                : "Informasi Tambahan";
-
                           const fields = Object.keys(
                             addRequestedDataFieldMeta,
                           ).filter(
@@ -603,14 +562,6 @@ export default function TableCellViewer({
 
                           return (
                             <div key={section} className="space-y-4">
-                              <div className="flex items-center gap-3">
-                                <div className="h-px flex-1 bg-border" />
-                                <span className="text-xs font-medium text-muted-foreground tracking-wider">
-                                  {sectionTitle}
-                                </span>
-                                <div className="h-px flex-1 bg-border" />
-                              </div>
-
                               <div className="space-y-4">
                                 {fields.map((key) => {
                                   const meta =
@@ -655,16 +606,6 @@ export default function TableCellViewer({
 
             {activeTab === "docs" && (
               <div className="space-y-8">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="h-px flex-1 bg-border" />
-                    <span className="text-xs font-medium text-muted-foreground tracking-wider">
-                      Lampiran Dokumen
-                    </span>
-                    <div className="h-px flex-1 bg-border" />
-                  </div>
-                </div>
-
                 <Button size="sm" onClick={addAttachment}>
                   Tambah
                 </Button>
@@ -685,59 +626,34 @@ export default function TableCellViewer({
                         </Button>
                       </div>
 
-                      <div className="space-y-6">
-                        {["main"].map((section) => {
-                          const fields = Object.keys(
-                            taskAttachmentFieldMeta,
-                          ).filter(
-                            (key) =>
-                              taskAttachmentFieldMeta[
-                                key as keyof typeof taskAttachmentFieldMeta
-                              ].section === section,
-                          );
+                      <div className="space-y-4">
+                        {Object.keys(taskAttachmentFieldMeta).map((key) => {
+                          const meta =
+                            taskAttachmentFieldMeta[
+                              key as keyof typeof taskAttachmentFieldMeta
+                            ];
+
+                          const val = att?.[key as keyof typeof att];
 
                           return (
-                            <div key={section} className="space-y-4">
-                              <div className="flex items-center gap-3">
-                                <div className="h-px flex-1 bg-border" />
-                                <span className="text-xs font-medium text-muted-foreground tracking-wider">
-                                  Detail Dokumen
-                                </span>
-                                <div className="h-px flex-1 bg-border" />
-                              </div>
+                            <div
+                              key={key}
+                              className="grid grid-cols-1 md:grid-cols-3 items-center gap-4"
+                            >
+                              <Label className="text-xs text-muted-foreground md:col-span-1">
+                                {meta.label}
+                              </Label>
 
-                              <div className="space-y-4">
-                                {fields.map((key) => {
-                                  const meta =
-                                    taskAttachmentFieldMeta[
-                                      key as keyof typeof taskAttachmentFieldMeta
-                                    ];
-
-                                  const val = att?.[key as keyof typeof att];
-
-                                  return (
-                                    <div
-                                      key={key}
-                                      className="grid grid-cols-1 md:grid-cols-3 items-center gap-4"
-                                    >
-                                      <Label className="text-xs text-muted-foreground md:col-span-1">
-                                        {meta.label}
-                                      </Label>
-
-                                      <Input
-                                        className="h-9 md:col-span-2"
-                                        value={String(val ?? "")}
-                                        onChange={(e) =>
-                                          handleChange(
-                                            `attachments.${i}.${key}`,
-                                            e.target.value,
-                                          )
-                                        }
-                                      />
-                                    </div>
-                                  );
-                                })}
-                              </div>
+                              <Input
+                                className="h-9 md:col-span-2"
+                                value={String(val ?? "")}
+                                onChange={(e) =>
+                                  handleChange(
+                                    `attachments.${i}.${key}`,
+                                    e.target.value,
+                                  )
+                                }
+                              />
                             </div>
                           );
                         })}
@@ -750,7 +666,7 @@ export default function TableCellViewer({
           </div>
         </div>
 
-        <DrawerFooter className="border-t">
+        <DrawerFooter className="border-t shrink-0 bg-background z-10">
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? "Loading..." : "Submit"}
           </Button>
