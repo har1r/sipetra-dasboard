@@ -83,9 +83,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { taskSchema } from "@/lib/constants/initialTask";
+import { taskSchema, createTaskSchema } from "@/lib/constants/initialTask";
+import { createTask } from "@/lib/actions/task-actions";
 
 import TableCellCreate from "./tableCellCreate";
+import TableCellUpdate from "./tableCellUpdate";
+
+type Task = z.infer<typeof createTaskSchema>;
 
 // Create a separate component for the drag handle
 function DragHandle({ id }: { id: string }) {
@@ -145,7 +149,7 @@ const columns: ColumnDef<z.infer<typeof taskSchema>>[] = [
     accessorKey: "nopel",
     header: "Nopel",
     cell: ({ row }) => {
-      return <TableCellCreate item={row.original} />;
+      return <TableCellUpdate item={row.original} />;
     },
     enableHiding: false,
   },
@@ -442,6 +446,17 @@ export function TaskTable({
       });
     }
   }
+  const handleCreate = async (data: Task) => {
+    await createTask({
+      ...data,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      approvals: [],
+      currentStage: "penginputan",
+      overallStatus: "in_progress",
+      isLocked: false,
+    });
+  };
   return (
     <Tabs
       defaultValue="outline"
@@ -518,6 +533,11 @@ export function TaskTable({
             <IconPlus />
             <span className="hidden lg:inline">Add Section</span>
           </Button>
+          <TableCellCreate
+            open={openCreate}
+            onOpenChange={setOpenCreate}
+            onSubmit={handleCreate}
+          />
         </div>
       </div>
       <TabsContent
@@ -668,12 +688,6 @@ export function TaskTable({
       >
         <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
       </TabsContent>
-
-      <TableCellCreate
-        item={rowSelection}
-        open={openCreate}
-        onOpenChange={setOpenCreate}
-      />
     </Tabs>
   );
 }

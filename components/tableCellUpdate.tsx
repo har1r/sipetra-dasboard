@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { createTask } from "@/lib/actions/task-actions";
 import {
   createTaskSchema,
   initialTaskForm,
@@ -46,31 +47,52 @@ const TABS = [
   { id: "docs", label: "Lampiran", icon: LinkIcon },
 ] as const;
 
-export default function TableCellCreate({
-  open,
+export default function TableCellUpdate({
+  item,
+  open: controlledOpen,
   onOpenChange,
-  onSubmit,
 }: {
-  open: boolean;
-  onOpenChange: (val: boolean) => void;
-  onSubmit: (data: Task) => Promise<void>;
+  item: Partial<Task>;
+  open?: boolean;
+  onOpenChange?: (val: boolean) => void;
 }) {
   const isMobile = useIsMobile();
+
+  const [open, setOpen] = React.useState(false);
+  const currentOpen = controlledOpen ?? open;
 
   const [activeTab, setActiveTab] =
     React.useState<(typeof TABS)[number]["id"]>("info");
 
-  const [form, setForm] = React.useState<Partial<Task>>(initialTaskForm);
+  const safeInitial = React.useMemo(
+    () => ({
+      ...initialTaskForm,
+      ...item,
+      baseData: {
+        ...initialTaskForm.baseData,
+        ...(item.baseData ?? {}),
+      },
+      requestedData: {
+        ...initialTaskForm.requestedData,
+        ...(item.requestedData ?? {}),
+      },
+      requestedChanges: item.requestedChanges ?? [],
+      attachments: item.attachments ?? [],
+      dynamicFields: item.dynamicFields ?? {},
+    }),
+    [item],
+  );
+
+  const [form, setForm] = React.useState<Partial<Task>>(safeInitial);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   React.useEffect(() => {
-    if (open) {
-      setForm(initialTaskForm);
-    }
-  }, [open]);
+    setForm(safeInitial);
+  }, [safeInitial]);
 
   const handleOpenChange = (val: boolean) => {
-    onOpenChange(val);
+    setOpen(val);
+    onOpenChange?.(val);
   };
 
   const handleChange = (path: string, value: any) => {
@@ -144,12 +166,14 @@ export default function TableCellCreate({
         return;
       }
 
-      await onSubmit(parsed.data);
+      const result = await createTask(parsed.data);
 
-      toast.success("Task berhasil dibuat");
-      onOpenChange(false);
-    } catch {
-      toast.error("Gagal membuat task");
+      if (result?.success) {
+        toast.success("Task berhasil dibuat");
+        handleOpenChange(false);
+      } else {
+        toast.error("Gagal membuat task");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -160,9 +184,15 @@ export default function TableCellCreate({
   return (
     <Drawer
       direction={isMobile ? "bottom" : "right"}
-      open={open}
-      onOpenChange={onOpenChange}
+      open={currentOpen}
+      onOpenChange={handleOpenChange}
     >
+      <DrawerTrigger asChild>
+        <Button variant="link" className="px-0">
+          {item?.nopel || "-"}
+        </Button>
+      </DrawerTrigger>
+
       <DrawerContent className="flex flex-col h-full max-h-screen">
         <DrawerHeader className="px-4 border-b">
           <DrawerTitle>Create Task</DrawerTitle>
