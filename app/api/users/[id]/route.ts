@@ -3,7 +3,7 @@ import connectDB from "@/lib/db";
 import { User } from "@/models/user";
 import { requireRole } from "@/lib/auth/requireRole";
 import { z } from "zod";
-import { ROLES } from "@/lib/constants/roles";
+import { ROLES } from "@/lib/constants/constant-user";
 
 const schema = z.object({
   role: z.enum(ROLES),

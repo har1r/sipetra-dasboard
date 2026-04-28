@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import { Task } from "@/models/task";
 import { requireRole } from "@/lib/auth/requireRole";
-import { createTaskSchema } from "@/lib/constants/initialTask";
+import { createTaskSchema } from "@/lib/constants/constant-task";
 import { ITaskApproval } from "@/models/task";
 
 export async function GET(req: Request) {
@@ -72,7 +72,6 @@ export async function POST(req: Request) {
         stage: "penelitian",
         status: "in_progress",
         approvedBy: undefined,
-        approvedAt: null,
         note: "",
       },
       {
@@ -80,7 +79,6 @@ export async function POST(req: Request) {
         stage: "pengarsipan",
         status: "in_progress",
         approvedBy: undefined,
-        approvedAt: null,
         note: "",
       },
       {
@@ -88,7 +86,6 @@ export async function POST(req: Request) {
         stage: "pengiriman",
         status: "in_progress",
         approvedBy: undefined,
-        approvedAt: null,
         note: "",
       },
       {
@@ -96,7 +93,6 @@ export async function POST(req: Request) {
         stage: "pemeriksaan",
         status: "in_progress",
         approvedBy: undefined,
-        approvedAt: null,
         note: "",
       },
     ];
@@ -107,7 +103,6 @@ export async function POST(req: Request) {
       dynamicFields: data.dynamicFields ?? {},
       attachments: data.attachments ?? [],
       approvals: defaultApprovals,
-      createdBy: user._id,
       currentStage: "penelitian",
       overallStatus: "in_progress",
       isLocked: false,

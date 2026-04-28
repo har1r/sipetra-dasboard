@@ -83,7 +83,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { taskSchema, createTaskSchema } from "@/lib/constants/initialTask";
+import { taskSchema, createTaskSchema } from "@/lib/constants/constant-task";
 import { createTask } from "@/lib/actions/task-actions";
 
 import TableCellCreate from "./tableCellCreate";

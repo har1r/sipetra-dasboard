@@ -34,11 +34,24 @@ import {
   requestedDataFieldMeta,
   addRequestedDataFieldMeta,
   taskAttachmentFieldMeta,
-} from "@/lib/constants/initialTask";
-import { LIST_KECAMATAN, KECAMATAN_DATA } from "@/lib/constants/region";
+} from "@/lib/constants/constant-task";
+import {
+  LIST_KECAMATAN,
+  KECAMATAN_DATA,
+} from "@/lib/constants/constant-region";
 import { toast } from "sonner";
 
-type Task = z.infer<typeof createTaskSchema>;
+type UpdateTaskInput = z.infer<typeof createTaskSchema>;
+
+type Task = UpdateTaskInput & {
+  _id: string;
+  approvals: any[];
+  currentStage: string;
+  overallStatus: string;
+  isLocked: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 const TABS = [
   { id: "info", label: "Info", icon: FileText },
@@ -52,7 +65,7 @@ export default function TableCellUpdate({
   open: controlledOpen,
   onOpenChange,
 }: {
-  item: Partial<Task>;
+  item: Task;
   open?: boolean;
   onOpenChange?: (val: boolean) => void;
 }) {
@@ -64,24 +77,20 @@ export default function TableCellUpdate({
   const [activeTab, setActiveTab] =
     React.useState<(typeof TABS)[number]["id"]>("info");
 
-  const safeInitial = React.useMemo(
-    () => ({
-      ...initialTaskForm,
+  const safeInitial = React.useMemo(() => {
+    return {
       ...item,
       baseData: {
-        ...initialTaskForm.baseData,
-        ...(item.baseData ?? {}),
+        ...item.baseData,
       },
       requestedData: {
-        ...initialTaskForm.requestedData,
-        ...(item.requestedData ?? {}),
+        ...item.requestedData,
       },
       requestedChanges: item.requestedChanges ?? [],
       attachments: item.attachments ?? [],
       dynamicFields: item.dynamicFields ?? {},
-    }),
-    [item],
-  );
+    };
+  }, [item]);
 
   const [form, setForm] = React.useState<Partial<Task>>(safeInitial);
   const [isSubmitting, setIsSubmitting] = React.useState(false);

@@ -1,13 +1,12 @@
 import mongoose, { Schema, Model, models, model, Document } from "mongoose";
-import { LIST_KECAMATAN, LIST_DESA } from "@/lib/constants/region";
-import { STAGES, Stage } from "@/lib/constants/roles";
-
-export interface ITaskAttachment {
-  driveLink: string;
-  linkName: string;
-  uploadedBy: mongoose.Types.ObjectId;
-  uploadedAt: Date;
-}
+import { LIST_KECAMATAN, LIST_DESA } from "@/lib/constants/constant-region";
+import {
+  SERVICE_TYPES,
+  STAGES,
+  Status,
+  Stage,
+  ServiceType,
+} from "@/lib/constants/constant-user";
 
 export interface IRequestedData {
   taxObjectAddress: string;
@@ -17,14 +16,13 @@ export interface IRequestedData {
 
 export interface IAddRequestedData {
   taxpayerName: string;
-  taxpayerNameSearch?: string;
   taxpayerAddress: string;
-  taxpayerVillage: string;
   taxpayerSubdistrict: string;
+  taxpayerVillage: string;
   landArea: number;
   buildingArea: number;
   certificate: string;
-  status: "in_progress" | "approved" | "revised" | "rejected";
+  status: Status;
   note?: string;
 }
 
@@ -33,60 +31,51 @@ export interface ITaskApproval {
   stage: Stage;
   approvedBy?: mongoose.Types.ObjectId;
   approvedAt?: Date | null;
-  status: "in_progress" | "approved" | "revised" | "rejected";
+  status: Status;
   note?: string;
 }
 
-export interface ITask extends Document {
-  serviceType:
-    | "pengaktifan"
-    | "mutasi habis update"
-    | "mutasi habis reguler"
-    | "mutasi sebagian"
-    | "pembetulan"
-    | "objek pajak baru";
+export interface ITaskAttachment {
+  driveLink: string;
+  linkName: string;
+  uploadedBy?: mongoose.Types.ObjectId;
+  uploadedAt?: Date | null;
+}
 
+export interface ITask extends Document {
+  serviceType: ServiceType;
   nopel: string;
   nop: string;
-
-  baseData: {
-    taxpayerName: string;
-    taxpayerNameSearch?: string;
-    taxpayerAddress: string;
-    taxpayerVillage: string;
-    taxpayerSubdistrict: string;
-    taxObjectAddress: string;
-    taxObjectVillage: string;
-    taxObjectSubdistrict: string;
-    landArea: number;
-    buildingArea: number;
+  baseData?: {
+    taxpayerName?: string;
+    taxpayerAddress?: string;
+    taxpayerVillage?: string;
+    taxpayerSubdistrict?: string;
+    taxObjectAddress?: string;
+    taxObjectSubdistrict?: string;
+    taxObjectVillage?: string;
+    landArea?: number;
+    buildingArea?: number;
   };
-
   requestedData: IRequestedData;
   requestedChanges: IAddRequestedData[];
-
-  dynamicFields: Map<string, any>;
-  attachments: ITaskAttachment[];
   approvals: ITaskApproval[];
-
-  createdBy: mongoose.Types.ObjectId;
   currentStage: Stage;
-  overallStatus: "in_progress" | "approved" | "rejected" | "revised";
-
+  overallStatus: Status;
   reportId?: mongoose.Types.ObjectId;
-
+  dynamicFields: Map<string, string>;
+  attachments: ITaskAttachment[];
   revisedHistories: Array<{
     revisedAct: string;
-    revisedBy: mongoose.Types.ObjectId;
+    revisedBy?: mongoose.Types.ObjectId;
     revisedNote: string;
-    revisedAt: Date;
+    revisedAt?: Date | null;
     stageAtRevision: Stage;
     isResolved: boolean;
   }>;
-
   isLocked: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: Date | null;
+  updatedAt: Date | null;
 }
 
 function calculateStatus(
@@ -102,14 +91,11 @@ function calculateStatus(
 const taskAttachmentSchema = new Schema<ITaskAttachment>({
   driveLink: { type: String, required: true, trim: true },
   linkName: { type: String, required: true, trim: true },
-  uploadedBy: { type: Schema.Types.ObjectId, ref: "User" },
-  uploadedAt: { type: Date, default: Date.now },
 });
 
 const addRequestedDataSchema = new Schema<IAddRequestedData>(
   {
     taxpayerName: { type: String, required: true, trim: true },
-    taxpayerNameSearch: { type: String, lowercase: true, trim: true },
     taxpayerAddress: { type: String, required: true, trim: true },
     taxpayerVillage: {
       type: String,
@@ -156,35 +142,28 @@ const taskApprovalSchema = new Schema<ITaskApproval>(
 
 const taskSchema = new Schema<ITask>(
   {
-    serviceType: { type: String, required: true },
+    serviceType: { type: String, enum: SERVICE_TYPES, required: true },
     nopel: {
       type: String,
-      required: true,
-      trim: true,
       unique: true,
       index: true,
+      required: true,
+      trim: true,
     },
-    nop: { type: String, required: true },
-
+    nop: { type: String, required: true, trim: true },
     baseData: {
-      taxpayerName: { type: String, required: true },
-      taxpayerNameSearch: { type: String },
-      taxpayerAddress: { type: String, required: true },
-      taxpayerVillage: { type: String, required: true, trim: true },
-      taxpayerSubdistrict: {
-        type: String,
-        required: true,
-        trim: true,
-      },
-      taxObjectAddress: { type: String, required: true },
-      taxObjectVillage: { type: String, required: true, enum: LIST_DESA },
+      taxpayerName: { type: String, trim: true },
+      taxpayerAddress: { type: String, trim: true },
+      taxpayerSubdistrict: { type: String, trim: true },
+      taxpayerVillage: { type: String, trim: true },
+      taxObjectAddress: { type: String, trim: true },
       taxObjectSubdistrict: {
         type: String,
-        required: true,
         enum: LIST_KECAMATAN,
       },
-      landArea: { type: Number, required: true },
-      buildingArea: { type: Number, required: true },
+      taxObjectVillage: { type: String, enum: LIST_DESA },
+      landArea: { type: Number },
+      buildingArea: { type: Number },
     },
 
     requestedData: {
@@ -208,7 +187,6 @@ const taskSchema = new Schema<ITask>(
     dynamicFields: { type: Map, of: Schema.Types.Mixed, default: {} },
     attachments: [taskAttachmentSchema],
     approvals: [taskApprovalSchema],
-    createdBy: { type: Schema.Types.ObjectId, ref: "User" },
     currentStage: {
       type: String,
       enum: STAGES,
@@ -241,18 +219,6 @@ const taskSchema = new Schema<ITask>(
 taskSchema.pre("save", function () {
   const doc = this as mongoose.HydratedDocument<ITask>;
 
-  if (doc.baseData?.taxpayerName) {
-    doc.baseData.taxpayerNameSearch = doc.baseData.taxpayerName.toLowerCase();
-  }
-
-  if (doc.requestedChanges && doc.requestedChanges.length > 0) {
-    doc.requestedChanges.forEach((item) => {
-      if (item.taxpayerName) {
-        item.taxpayerNameSearch = item.taxpayerName.toLowerCase();
-      }
-    });
-  }
-
   const requested = doc.requestedChanges || [];
   const approvals = doc.approvals || [];
 
@@ -272,4 +238,5 @@ taskSchema.pre("save", function () {
   }
 });
 
-export const Task: Model<ITask> = models.Task || model<ITask>("Task", taskSchema);
+export const Task: Model<ITask> =
+  models.Task || model<ITask>("Task", taskSchema);

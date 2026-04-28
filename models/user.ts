@@ -1,5 +1,5 @@
 import { Schema, Model, model, models, Document } from "mongoose";
-import { ROLES, Role } from "@/lib/constants/roles";
+import { ROLES, Role } from "@/lib/constants/constant-user";
 
 export interface IUser extends Document {
   clerkId: string;
@@ -44,4 +44,5 @@ const userSchema = new Schema<IUser>(
   },
 );
 
-export const User:Model<IUser> = models.User || model<IUser>("User", userSchema);
+export const User: Model<IUser> =
+  models.User || model<IUser>("User", userSchema);
