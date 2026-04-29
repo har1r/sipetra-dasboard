@@ -24,11 +24,11 @@ export const STATUS = [
 
 export const SERVICE_TYPES = [
   "pengaktifan",
-  "mutasi habis update",
-  "mutasi habis reguler",
-  "mutasi sebagian",
+  "mutasi_habis_update",
+  "mutasi_habis_reguler",
+  "mutasi_sebagian",
   "pembetulan",
-  "objek pajak baru",
+  "objek_pajak_baru",
 ] as const;
 
 export type Role = (typeof ROLES)[number];

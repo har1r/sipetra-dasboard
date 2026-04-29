@@ -6,6 +6,7 @@ import {
   Status,
   Stage,
   ServiceType,
+  STATUS,
 } from "@/lib/constants/constant-user";
 
 export interface IRequestedData {
@@ -88,31 +89,57 @@ function calculateStatus(
   return "in_progress";
 }
 
-const taskAttachmentSchema = new Schema<ITaskAttachment>({
-  driveLink: { type: String, required: true, trim: true },
-  linkName: { type: String, required: true, trim: true },
-});
-
-const addRequestedDataSchema = new Schema<IAddRequestedData>(
+const baseDataSchema = new Schema(
   {
-    taxpayerName: { type: String, required: true, trim: true },
-    taxpayerAddress: { type: String, required: true, trim: true },
-    taxpayerVillage: {
+    taxpayerName: { type: String, trim: true },
+    taxpayerAddress: { type: String, trim: true },
+    taxpayerSubdistrict: { type: String, trim: true },
+    taxpayerVillage: { type: String, trim: true },
+    taxObjectAddress: { type: String, trim: true },
+    taxObjectSubdistrict: {
       type: String,
-      required: true,
-      trim: true,
+      enum: LIST_KECAMATAN,
     },
+    taxObjectVillage: { type: String, enum: LIST_DESA },
+    landArea: { type: Number, min: 0 },
+    buildingArea: { type: Number, min: 0 },
+  },
+  { _id: false },
+);
+
+const requestedDataSchema = new Schema(
+  {
+    taxObjectAddress: { type: String, trim: true },
+    taxObjectVillage: {
+      type: String,
+      enum: LIST_DESA,
+    },
+    taxObjectSubdistrict: {
+      type: String,
+      enum: LIST_KECAMATAN,
+    },
+  },
+  { _id: false },
+);
+
+const addRequestedChangeSchema = new Schema(
+  {
+    taxpayerName: { type: String, trim: true },
+    taxpayerAddress: { type: String, trim: true },
     taxpayerSubdistrict: {
       type: String,
-      required: true,
       trim: true,
     },
-    landArea: { type: Number, required: true, min: 0 },
-    buildingArea: { type: Number, required: true, min: 0 },
-    certificate: { type: String, required: true, trim: true },
+    taxpayerVillage: {
+      type: String,
+      trim: true,
+    },
+    landArea: { type: Number, min: 0 },
+    buildingArea: { type: Number, min: 0 },
+    certificate: { type: String, trim: true },
     status: {
       type: String,
-      enum: ["in_progress", "approved", "revised", "rejected"],
+      enum: STATUS,
       default: "in_progress",
     },
     note: { type: String, trim: true, default: "" },
@@ -120,73 +147,53 @@ const addRequestedDataSchema = new Schema<IAddRequestedData>(
   { _id: false },
 );
 
-const taskApprovalSchema = new Schema<ITaskApproval>(
+const taskApprovalSchema = new Schema(
   {
-    stageOrder: { type: Number, required: true },
+    stageOrder: { type: Number, required: true, min: 0 },
     stage: {
       type: String,
       enum: STAGES,
       default: "penginputan",
+      required: true,
     },
-    approvedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    approvedBy: { type: String, required: true, trim: true },
     approvedAt: { type: Date, default: null },
     status: {
       type: String,
-      enum: ["in_progress", "approved", "revised", "rejected"],
+      enum: STATUS,
       default: "in_progress",
     },
     note: { type: String, trim: true, default: "" },
+  },
+  { _id: false },
+);
+
+const taskAttachmentSchema = new Schema(
+  {
+    driveLink: { type: String, trim: true },
+    linkName: { type: String, trim: true },
+    uploadedBy: { type: String, trim: true },
+    uploadedAt: { type: Date, default: null },
   },
   { _id: false },
 );
 
 const taskSchema = new Schema<ITask>(
   {
-    serviceType: { type: String, enum: SERVICE_TYPES, required: true },
+    serviceType: {
+      type: String,
+      enum: SERVICE_TYPES,
+      required: true,
+      index: true,
+    },
     nopel: {
       type: String,
       unique: true,
-      index: true,
       required: true,
       trim: true,
+      index: true,
     },
-    nop: { type: String, required: true, trim: true },
-    baseData: {
-      taxpayerName: { type: String, trim: true },
-      taxpayerAddress: { type: String, trim: true },
-      taxpayerSubdistrict: { type: String, trim: true },
-      taxpayerVillage: { type: String, trim: true },
-      taxObjectAddress: { type: String, trim: true },
-      taxObjectSubdistrict: {
-        type: String,
-        enum: LIST_KECAMATAN,
-      },
-      taxObjectVillage: { type: String, enum: LIST_DESA },
-      landArea: { type: Number },
-      buildingArea: { type: Number },
-    },
-
-    requestedData: {
-      taxObjectAddress: { type: String, required: true, trim: true },
-      taxObjectVillage: {
-        type: String,
-        required: true,
-        trim: true,
-        enum: LIST_DESA,
-      },
-      taxObjectSubdistrict: {
-        type: String,
-        required: true,
-        trim: true,
-        enum: LIST_KECAMATAN,
-      },
-    },
-
-    requestedChanges: [addRequestedDataSchema],
-
-    dynamicFields: { type: Map, of: Schema.Types.Mixed, default: {} },
-    attachments: [taskAttachmentSchema],
-    approvals: [taskApprovalSchema],
+    nop: { type: String, required: true, trim: true, index: true },
     currentStage: {
       type: String,
       enum: STAGES,
@@ -194,14 +201,20 @@ const taskSchema = new Schema<ITask>(
     },
     overallStatus: {
       type: String,
-      enum: ["in_progress", "approved", "rejected", "revised"],
+      enum: STATUS,
       default: "in_progress",
     },
     reportId: { type: Schema.Types.ObjectId, ref: "Report" },
+    isLocked: { type: Boolean, default: false },
+    baseData: baseDataSchema,
+    requestedData: requestedDataSchema,
+    requestedChanges: [addRequestedChangeSchema],
+    approvals: [taskApprovalSchema],
+    attachments: [taskAttachmentSchema],
     revisedHistories: [
       {
         revisedAct: String,
-        revisedBy: { type: Schema.Types.ObjectId, ref: "User" },
+        revisedBy: { type: String, trim: true },
         revisedNote: String,
         revisedAt: { type: Date, default: Date.now },
         stageAtRevision: {
@@ -211,7 +224,6 @@ const taskSchema = new Schema<ITask>(
         isResolved: { type: Boolean, default: false },
       },
     ],
-    isLocked: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
