@@ -156,7 +156,7 @@ const taskApprovalSchema = new Schema(
       default: "penginputan",
       required: true,
     },
-    approvedBy: { type: String, required: true, trim: true },
+    approvedBy: { type: String, trim: true },
     approvedAt: { type: Date, default: null },
     status: {
       type: String,
