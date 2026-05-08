@@ -38,7 +38,7 @@ import {
 import {
   LIST_KECAMATAN,
   KECAMATAN_DATA,
-} from "@/lib/constants/constant-region";
+} from "@/constants/constant.region";
 import { toast } from "sonner";
 
 type UpdateTaskInput = z.infer<typeof createTaskSchema>;

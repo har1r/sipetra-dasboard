@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { User } from "@/models/user";
-import connectDB from "@/lib/db";
-import { Role } from "@/lib/constants/constant-user";
+import connectDB from "@/db/db";
+import { Role } from "@/constants/constant.task";
 
 export async function requireRole(allowedRoles: Role[]) {
   const { userId } = await auth();

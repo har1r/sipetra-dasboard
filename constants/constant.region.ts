@@ -65,7 +65,6 @@ export const KECAMATAN_DATA = {
 } as const;
 
 export const LIST_KECAMATAN = Object.keys(KECAMATAN_DATA);
-
 export const LIST_DESA = Object.values(KECAMATAN_DATA).flat();
 
 export type Kecamatan = keyof typeof KECAMATAN_DATA;

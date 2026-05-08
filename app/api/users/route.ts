@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import connectDB from "@/lib/db";
+import connectDB from "@/db/db";
 import { User } from "@/models/user";
 import { requireRole } from "@/lib/auth/requireRole";
 

@@ -83,15 +83,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { taskSchema, createTaskSchema } from "@/lib/constants/constant-task";
-import { createTask } from "@/lib/actions/task-actions";
+import { CreateTaskInput } from "@/validations/task.validation";
+import { TaskSchemaType } from "@/models/task.model";
 
 import TableCellCreate from "./tableCellCreate";
 import TableCellUpdate from "./tableCellUpdate";
 
-type Task = z.infer<typeof createTaskSchema>;
-
-// Create a separate component for the drag handle
 function DragHandle({ id }: { id: string }) {
   const { attributes, listeners } = useSortable({
     id,
@@ -111,7 +108,7 @@ function DragHandle({ id }: { id: string }) {
   );
 }
 
-const columns: ColumnDef<z.infer<typeof taskSchema>>[] = [
+const columns: ColumnDef<TaskSchemaType & { _id: string }>[] = [
   {
     id: "drag",
     header: () => null,
@@ -148,9 +145,11 @@ const columns: ColumnDef<z.infer<typeof taskSchema>>[] = [
   {
     accessorKey: "nopel",
     header: "Nopel",
-    cell: ({ row }) => {
-      return <TableCellUpdate item={row.original} />;
-    },
+    cell: ({ row }) => (
+      <Badge variant="outline" className="text-muted-foreground px-1.5">
+        {row.original?.nopel}
+      </Badge>
+    ),
     enableHiding: false,
   },
 
@@ -351,9 +350,9 @@ const columns: ColumnDef<z.infer<typeof taskSchema>>[] = [
   },
 ];
 
-function DraggableRow({ row }: { row: Row<z.infer<typeof taskSchema>> }) {
+function DraggableRow({ row }: { row: Row<TaskSchemaType> }) {
   const { transform, transition, setNodeRef, isDragging } = useSortable({
-    id: row.original?._id,
+    id: (row.original as any)?._id,
   });
 
   return (
@@ -376,11 +375,7 @@ function DraggableRow({ row }: { row: Row<z.infer<typeof taskSchema>> }) {
   );
 }
 
-export function TaskTable({
-  data: initialData,
-}: {
-  data: z.infer<typeof taskSchema>[];
-}) {
+export function TaskTable({ data: initialData }: { data: TaskSchemaType[] }) {
   const [openCreate, setOpenCreate] = React.useState(false);
   const [data, setData] = React.useState(() => initialData);
 
@@ -407,12 +402,12 @@ export function TaskTable({
   );
 
   const dataIds = React.useMemo<UniqueIdentifier[]>(
-    () => data?.map(({ _id }) => _id) || [],
+    () => data?.map((item: any) => item._id) || [],
     [data],
   );
 
-  const table = useReactTable({
-    data,
+  const table = useReactTable<TaskSchemaType & { _id: string }>({
+    data: data as (TaskSchemaType & { _id: string })[] || [],
     columns,
     state: {
       sorting,
@@ -421,7 +416,7 @@ export function TaskTable({
       columnFilters,
       pagination,
     },
-    getRowId: (row) => row?._id,
+    getRowId: (row) => (row as any)?._id,
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
@@ -446,17 +441,7 @@ export function TaskTable({
       });
     }
   }
-  const handleCreate = async (data: Task) => {
-    await createTask({
-      ...data,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      approvals: [],
-      currentStage: "penginputan",
-      overallStatus: "in_progress",
-      isLocked: false,
-    });
-  };
+
   return (
     <Tabs
       defaultValue="outline"
@@ -533,11 +518,7 @@ export function TaskTable({
             <IconPlus />
             <span className="hidden lg:inline">Add Section</span>
           </Button>
-          <TableCellCreate
-            open={openCreate}
-            onOpenChange={setOpenCreate}
-            onSubmit={handleCreate}
-          />
+          <TableCellCreate open={openCreate} onOpenChange={setOpenCreate} />
         </div>
       </div>
       <TabsContent

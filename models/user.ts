@@ -1,5 +1,5 @@
 import { Schema, Model, model, models, Document } from "mongoose";
-import { ROLES, Role } from "@/lib/constants/constant-user";
+import { ROLES, Role } from "@/constants/constant.task";
 
 export interface IUser extends Document {
   clerkId: string;

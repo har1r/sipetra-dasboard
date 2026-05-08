@@ -1,9 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { z } from "zod";
 import { FileText, User, LinkIcon, Layers } from "lucide-react";
-
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,53 +22,39 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-import {
-  createTaskSchema,
-  initialTaskForm,
-  serviceTypeOptions,
-  baseDataFieldMeta,
-  requestedDataFieldMeta,
-  addRequestedDataFieldMeta,
-  taskAttachmentFieldMeta,
-} from "@/lib/constants/constant-task";
-import {
-  LIST_KECAMATAN,
-  KECAMATAN_DATA,
-} from "@/lib/constants/constant-region";
 import { toast } from "sonner";
 
-type Task = z.infer<typeof createTaskSchema>;
+import {
+  SUBDISTRICT_DATA,
+  TASK_SERVICE,
+  baseDataFieldMeta,
+  requestedDataFieldMeta,
+  requestedChangesFieldMeta,
+  taskAttachmentsFieldMeta,
+} from "@/constants/task";
+import { CreateTaskInput } from "@/validations/task.validation";
 
 const TABS = [
   { id: "info", label: "Info", icon: FileText },
   { id: "base", label: "WP Lama", icon: User },
   { id: "requested", label: "Objek Baru", icon: Layers },
   { id: "docs", label: "Lampiran", icon: LinkIcon },
-] as const;
+];
 
 export default function TableCellCreate({
   open,
   onOpenChange,
-  onSubmit,
 }: {
   open: boolean;
   onOpenChange: (val: boolean) => void;
-  onSubmit: (data: Task) => Promise<void>;
 }) {
   const isMobile = useIsMobile();
 
   const [activeTab, setActiveTab] =
     React.useState<(typeof TABS)[number]["id"]>("info");
 
-  const [form, setForm] = React.useState<Partial<Task>>(initialTaskForm);
+  const [form, setForm] = React.useState<CreateTaskInput | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-
-  React.useEffect(() => {
-    if (open) {
-      setForm(initialTaskForm);
-    }
-  }, [open]);
 
   const handleOpenChange = (val: boolean) => {
     onOpenChange(val);
@@ -92,27 +76,33 @@ export default function TableCellCreate({
     });
   };
 
-  const addRequestedChange = () => {
-    setForm((prev) => ({
-      ...prev,
-      requestedChanges: [
-        ...(prev.requestedChanges ?? []),
-        {
-          taxpayerName: "",
-          taxpayerAddress: "",
-          taxpayerVillage: "",
-          taxpayerSubdistrict: "",
-          landArea: 0,
-          buildingArea: 0,
-          certificate: "",
-          note: "",
-        },
-      ],
-    }));
+  const addRequestedChanges = () => {
+    setForm((prev) => {
+      const currentRequestedChanges = prev?.requestedChanges ?? [];
+
+      return {
+        ...prev,
+        requestedChanges: [
+          ...currentRequestedChanges,
+          {
+            taxpayerName: "",
+            taxpayerAddress: "",
+            taxpayerVillage: "",
+            taxpayerSubdistrict: "",
+            landArea: 0,
+            buildingArea: 0,
+            certificate: "",
+            note: "",
+          },
+        ],
+      } as CreateTaskInput;
+    });
   };
 
   const removeRequestedChange = (index: number) => {
     setForm((prev) => {
+      if (!prev) return null;
+
       const arr = [...(prev.requestedChanges ?? [])];
       arr.splice(index, 1);
       return { ...prev, requestedChanges: arr };
@@ -120,42 +110,48 @@ export default function TableCellCreate({
   };
 
   const addAttachment = () => {
-    setForm((prev) => ({
-      ...prev,
-      attachments: [
-        ...(prev.attachments ?? []),
-        { driveLink: "", linkName: "" },
-      ],
-    }));
+    setForm((prev) => {
+      if (!prev) return prev;
+
+      return {
+        ...prev,
+        attachments: [
+          ...(prev.attachments ?? []),
+          { driveLink: "", linkName: "" },
+        ],
+      };
+    });
   };
 
   const removeAttachment = (index: number) => {
     setForm((prev) => {
-      const arr = [...(prev.attachments ?? [])];
-      arr.splice(index, 1);
-      return { ...prev, attachments: arr };
+      if (!prev || !prev.attachments) return prev;
+
+      return {
+        ...prev,
+        attachments: prev.attachments.filter((_, i) => i !== index),
+      };
     });
   };
 
-  const handleSubmit = async () => {
-    setIsSubmitting(true);
-    try {
-      const parsed = createTaskSchema.safeParse(form);
+  const handleCreateTask = async (data: CreateTaskInput) => {
+    const response = await fetch("/api/tasks", {
+      method: "POST",
 
-      if (!parsed.success) {
-        toast.error("Form tidak valid");
-        return;
-      }
+      headers: {
+        "Content-Type": "application/json",
+      },
 
-      await onSubmit(parsed.data);
+      body: JSON.stringify(data),
+    });
 
-      toast.success("Task berhasil dibuat");
-      onOpenChange(false);
-    } catch {
-      toast.error("Gagal membuat task");
-    } finally {
-      setIsSubmitting(false);
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || "Failed create task");
     }
+
+    return result;
   };
 
   if (!form) return null;
@@ -205,7 +201,7 @@ export default function TableCellCreate({
                     </SelectTrigger>
 
                     <SelectContent>
-                      {serviceTypeOptions.map((item) => (
+                      {TASK_SERVICE.map((item) => (
                         <SelectItem key={item} value={item}>
                           {item}
                         </SelectItem>
@@ -296,7 +292,7 @@ export default function TableCellCreate({
                                   </SelectTrigger>
 
                                   <SelectContent>
-                                    {LIST_KECAMATAN.map((kec) => (
+                                    {Object.keys(SUBDISTRICT_DATA).map((kec) => (
                                       <SelectItem key={kec} value={kec}>
                                         {kec}
                                       </SelectItem>
@@ -309,11 +305,11 @@ export default function TableCellCreate({
 
                           if (key === "taxObjectVillage") {
                             const selectedKecamatan = form.baseData
-                              ?.taxObjectSubdistrict as keyof typeof KECAMATAN_DATA;
+                              ?.taxObjectSubdistrict as keyof typeof SUBDISTRICT_DATA;
 
                             const desaList =
                               (selectedKecamatan &&
-                                KECAMATAN_DATA[selectedKecamatan]) ||
+                                SUBDISTRICT_DATA[selectedKecamatan]) ||
                               [];
 
                             return (
@@ -425,7 +421,7 @@ export default function TableCellCreate({
                               </SelectTrigger>
 
                               <SelectContent>
-                                {LIST_KECAMATAN.map((kec) => (
+                                {Object.keys(SUBDISTRICT_DATA).map((kec) => (
                                   <SelectItem key={kec} value={kec}>
                                     {kec}
                                   </SelectItem>
@@ -438,11 +434,11 @@ export default function TableCellCreate({
 
                       if (key === "taxObjectVillage") {
                         const selectedKecamatan = form.requestedData
-                          ?.taxObjectSubdistrict as keyof typeof KECAMATAN_DATA;
+                          ?.taxObjectSubdistrict as keyof typeof SUBDISTRICT_DATA;
 
                         const desaList =
                           (selectedKecamatan &&
-                            KECAMATAN_DATA[selectedKecamatan]) ||
+                            SUBDISTRICT_DATA[selectedKecamatan]) ||
                           [];
 
                         return (
@@ -503,7 +499,7 @@ export default function TableCellCreate({
                 </div>
 
                 <div className="space-y-6">
-                  <Button size="sm" onClick={addRequestedChange}>
+                  <Button size="sm" onClick={addRequestedChanges}>
                     Tambah
                   </Button>
 
@@ -525,11 +521,11 @@ export default function TableCellCreate({
 
                         {["wp", "size", "info"].map((section) => {
                           const fields = Object.keys(
-                            addRequestedDataFieldMeta,
+                            requestedChangesFieldMeta,
                           ).filter(
                             (key) =>
-                              addRequestedDataFieldMeta[
-                                key as keyof typeof addRequestedDataFieldMeta
+                              requestedChangesFieldMeta[
+                                key as keyof typeof requestedChangesFieldMeta
                               ].section === section,
                           );
 
@@ -538,8 +534,8 @@ export default function TableCellCreate({
                               <div className="space-y-4">
                                 {fields.map((key) => {
                                   const meta =
-                                    addRequestedDataFieldMeta[
-                                      key as keyof typeof addRequestedDataFieldMeta
+                                    requestedChangesFieldMeta[
+                                      key as keyof typeof requestedChangesFieldMeta
                                     ];
 
                                   const val = item?.[key as keyof typeof item];
@@ -600,10 +596,10 @@ export default function TableCellCreate({
                       </div>
 
                       <div className="space-y-4">
-                        {Object.keys(taskAttachmentFieldMeta).map((key) => {
+                        {Object.keys(taskAttachmentsFieldMeta).map((key) => {
                           const meta =
-                            taskAttachmentFieldMeta[
-                              key as keyof typeof taskAttachmentFieldMeta
+                            taskAttachmentsFieldMeta[
+                              key as keyof typeof taskAttachmentsFieldMeta
                             ];
 
                           const val = att?.[key as keyof typeof att];
@@ -640,7 +636,7 @@ export default function TableCellCreate({
         </div>
 
         <DrawerFooter className="border-t shrink-0 bg-background z-10">
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button onClick={() => handleCreateTask(form)} disabled={isSubmitting}>
             {isSubmitting ? "Loading..." : "Submit"}
           </Button>
           <DrawerClose asChild>

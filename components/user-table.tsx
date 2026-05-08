@@ -96,7 +96,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ROLES } from "@/lib/constants/constant-user";
+import { ROLES } from "@/constants/constant.task";
 import { formatDate } from "@/lib/utils";
 import { updateUserDetails } from "@/lib/actions/user-actions";
 

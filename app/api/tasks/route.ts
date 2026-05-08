@@ -1,127 +1,84 @@
-import { NextResponse } from "next/server";
-import connectDB from "@/lib/db";
-import { Task } from "@/models/task";
+import { NextRequest } from "next/server";
+import  connectDB  from "@/db/db";
+import {
+  createTaskSchema,
+} from "@/validations/task.validation";
+import {
+  createTaskService,
+  getTasksService,
+} from "@/services/task.service";
+import {
+  errorResponse,
+  successResponse,
+} from "@/lib/response";
+import { ZodError } from "zod";
+import { formatZodError } from "@/utils/zod-error";
 import { requireRole } from "@/lib/auth/requireRole";
-import { createTaskSchema } from "@/lib/constants/constant-task";
-import { ITaskApproval } from "@/models/task";
 
-export async function GET(req: Request) {
+export async function POST(
+  req: NextRequest
+) {
   try {
-    await requireRole([
-      "admin",
-      "penginput",
-      "peneliti",
-      "pengarsip",
-      "pengirim",
-      "pemeriksa",
-    ]);
-
+    const user = await requireRole(["admin"]);
+    
     await connectDB();
+    const body = await req.json();
 
-    const tasks = await Task.find({}).sort({ createdAt: -1 }).lean();
+    const validatedData =
+      createTaskSchema.parse(body);
 
-    return NextResponse.json({ success: true, data: tasks });
-  } catch (error: any) {
-    console.error("Get Tasks Error:", error.message);
+    const initialApprovals = [
+      {
+        stageOrder: 1,
+        stage: "penginputan",
+        approvedBy: user.name,
+        approvedAt: new Date(),
+        status: "approved",
+        note: "Input sistem berhasil",
+      },
+      { stageOrder: 2, stage: "penelitian", status: "in_progress" },
+      { stageOrder: 3, stage: "pemeriksaan", status: "in_progress" },
+      { stageOrder: 4, stage: "pengarsipan", status: "in_progress" },
+      { stageOrder: 5, stage: "pengiriman", status: "in_progress" },
+    ];
 
-    if (error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const createdTaskData = {
+      ...validatedData,
+      approvals: initialApprovals,
+    };
+    const task =
+      await createTaskService(
+        createdTaskData,
+      );
+
+    return successResponse(task, 201);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return errorResponse(
+        JSON.stringify(
+          formatZodError(error)
+        ),
+        400
+      );
     }
 
-    if (error.message === "Forbidden") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    return NextResponse.json(
-      { error: "Gagal mengambil data task" },
-      { status: 500 },
+    return errorResponse(
+      "Internal server error"
     );
   }
 }
 
-export async function POST(req: Request) {
+export async function GET() {
   try {
-    const user = await requireRole(["admin", "penginput"]);
-    console.log("Membuat task baru oleh user:", user);
-
     await connectDB();
 
-    const raw = await req.json();
-    const parsed = createTaskSchema.safeParse(raw);
+    const tasks =
+      await getTasksService();
 
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Invalid input", detail: parsed.error.flatten() },
-        { status: 400 },
-      );
-    }
-
-    const data = parsed.data;
-
-    const defaultApprovals: ITaskApproval[] = [
-      {
-        stageOrder: 1,
-        stage: "penginputan",
-        status: "approved",
-        approvedBy: user._id,
-        approvedAt: new Date(),
-        note: "Penginputan selesai, lanjut ke tahap penelitian.",
-      },
-      {
-        stageOrder: 2,
-        stage: "penelitian",
-        status: "in_progress",
-        approvedBy: undefined,
-        note: "",
-      },
-      {
-        stageOrder: 3,
-        stage: "pengarsipan",
-        status: "in_progress",
-        approvedBy: undefined,
-        note: "",
-      },
-      {
-        stageOrder: 4,
-        stage: "pengiriman",
-        status: "in_progress",
-        approvedBy: undefined,
-        note: "",
-      },
-      {
-        stageOrder: 5,
-        stage: "pemeriksaan",
-        status: "in_progress",
-        approvedBy: undefined,
-        note: "",
-      },
-    ];
-
-    const newTask = await Task.create({
-      ...data,
-      requestedChanges: data.requestedChanges ?? [],
-      dynamicFields: data.dynamicFields ?? {},
-      attachments: data.attachments ?? [],
-      approvals: defaultApprovals,
-      currentStage: "penelitian",
-      overallStatus: "in_progress",
-      isLocked: false,
-    });
-
-    return NextResponse.json({ success: true, data: newTask }, { status: 201 });
-  } catch (error: any) {
-    console.error("Create Task Error:", error.message);
-
-    if (error.code === 11000) {
-      return NextResponse.json(
-        { error: "Nomor Pelayanan (nopel) sudah terdaftar." },
-        { status: 400 },
-      );
-    }
-
-    return NextResponse.json(
-      { error: error.message || "Terjadi kesalahan saat membuat task." },
-      { status: 500 },
+    return successResponse(tasks);
+  } catch (error) {
+    return errorResponse(
+      "Internal server error"
     );
   }
 }

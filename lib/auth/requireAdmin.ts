@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { User } from "@/models/user";
-import connectDB from "@/lib/db";
+import connectDB from "@/db/db";
 
 export async function requireAdmin() {
   const { userId } = await auth();
