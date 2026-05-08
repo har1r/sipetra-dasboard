@@ -3,10 +3,13 @@ import { TaskTable } from "@/components/task-table";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
-import { getTasks } from "../../lib/actions/task-actions";
-
 export default async function Page() {
-  const tasks = await getTasks();
+  const task = await fetch("http://localhost:3000/api/tasks", {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  }).then((res) => res.json());
 
   return (
     <SidebarProvider
@@ -23,7 +26,7 @@ export default async function Page() {
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-              <TaskTable data={tasks} />
+              <TaskTable data={task} />
             </div>
           </div>
         </div>

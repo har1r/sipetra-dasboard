@@ -11,7 +11,6 @@ import {
   DrawerFooter,
   DrawerHeader,
   DrawerTitle,
-  DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +22,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { ZodError } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 
 import {
   SUBDISTRICT_DATA,
@@ -32,7 +35,11 @@ import {
   requestedChangesFieldMeta,
   taskAttachmentsFieldMeta,
 } from "@/constants/task";
-import { CreateTaskInput } from "@/validations/task.validation";
+import {
+  createTaskSchema,
+  CreateTaskInput,
+} from "@/validations/task.validation";
+import { formatZodError } from "@/utils/zod-error";
 
 const TABS = [
   { id: "info", label: "Info", icon: FileText },
@@ -40,6 +47,31 @@ const TABS = [
   { id: "requested", label: "Objek Baru", icon: Layers },
   { id: "docs", label: "Lampiran", icon: LinkIcon },
 ];
+
+const initialCreateForm: CreateTaskInput = {
+  serviceType: "objek pajak baru",
+  nopel: "",
+  nop: "",
+  baseData: undefined,
+  requestedData: {
+    taxObjectAddress: "",
+    taxObjectSubdistrict: "" as any,
+    taxObjectVillage: "" as any,
+  },
+  requestedChanges: [
+    {
+      taxpayerName: "",
+      taxpayerAddress: "",
+      taxpayerSubdistrict: "",
+      taxpayerVillage: "",
+      landArea: 0,
+      buildingArea: 0,
+      certificate: "",
+      note: "",
+    },
+  ],
+  attachments: [],
+};
 
 export default function TableCellCreate({
   open,
@@ -49,12 +81,11 @@ export default function TableCellCreate({
   onOpenChange: (val: boolean) => void;
 }) {
   const isMobile = useIsMobile();
-
   const [activeTab, setActiveTab] =
     React.useState<(typeof TABS)[number]["id"]>("info");
-
-  const [form, setForm] = React.useState<CreateTaskInput | null>(null);
+  const [form, setForm] = React.useState<CreateTaskInput>(initialCreateForm);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const router = useRouter();
 
   const handleOpenChange = (val: boolean) => {
     onOpenChange(val);
@@ -77,39 +108,39 @@ export default function TableCellCreate({
   };
 
   const addRequestedChanges = () => {
+    setForm((prev) => ({
+      ...prev,
+      requestedChanges: [
+        ...prev.requestedChanges,
+        {
+          taxpayerName: "",
+          taxpayerAddress: "",
+          taxpayerVillage: "",
+          taxpayerSubdistrict: "",
+          landArea: 0,
+          buildingArea: 0,
+          certificate: "",
+          note: "",
+        },
+      ],
+    }));
+  };
+
+  const removeRequestedChanges = (index: number) => {
     setForm((prev) => {
-      const currentRequestedChanges = prev?.requestedChanges ?? [];
+      if (prev.requestedChanges.length <= 1) {
+        toast.error("Minimal harus ada satu permohonan");
+        return prev;
+      }
 
       return {
         ...prev,
-        requestedChanges: [
-          ...currentRequestedChanges,
-          {
-            taxpayerName: "",
-            taxpayerAddress: "",
-            taxpayerVillage: "",
-            taxpayerSubdistrict: "",
-            landArea: 0,
-            buildingArea: 0,
-            certificate: "",
-            note: "",
-          },
-        ],
-      } as CreateTaskInput;
+        requestedChanges: prev.requestedChanges.filter((_, i) => i !== index),
+      };
     });
   };
 
-  const removeRequestedChange = (index: number) => {
-    setForm((prev) => {
-      if (!prev) return null;
-
-      const arr = [...(prev.requestedChanges ?? [])];
-      arr.splice(index, 1);
-      return { ...prev, requestedChanges: arr };
-    });
-  };
-
-  const addAttachment = () => {
+  const addAttachments = () => {
     setForm((prev) => {
       if (!prev) return prev;
 
@@ -123,7 +154,7 @@ export default function TableCellCreate({
     });
   };
 
-  const removeAttachment = (index: number) => {
+  const removeAttachments = (index: number) => {
     setForm((prev) => {
       if (!prev || !prev.attachments) return prev;
 
@@ -134,24 +165,40 @@ export default function TableCellCreate({
     });
   };
 
-  const handleCreateTask = async (data: CreateTaskInput) => {
-    const response = await fetch("/api/tasks", {
-      method: "POST",
+  const handleCreateTask = async (data: any) => {
+    try {
+      setIsSubmitting(true);
 
-      headers: {
-        "Content-Type": "application/json",
-      },
+      const validatedData = createTaskSchema.parse(data);
 
-      body: JSON.stringify(data),
-    });
+      const response = await fetch("http://localhost:3000/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(validatedData),
+      });
 
-    const result = await response.json();
+      const result = await response.json();
 
-    if (!response.ok) {
-      throw new Error(result.message || "Failed create task");
+      if (!response.ok) {
+        throw new Error(result.message || "Failed create task");
+      }
+
+      toast.success("Task berhasil dibuat");
+      onOpenChange(false);
+      router.refresh();
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        const errorMessage = formatZodError(error);
+        toast.error("Validasi Gagal", {
+          description: errorMessage,
+        });
+        console.error("Zod Validation Error:", errorMessage);
+      } else {
+        toast.error(error.message || "Terjadi kesalahan sistem");
+      }
+    } finally {
+      setIsSubmitting(false);
     }
-
-    return result;
   };
 
   if (!form) return null;
@@ -162,7 +209,7 @@ export default function TableCellCreate({
       open={open}
       onOpenChange={onOpenChange}
     >
-      <DrawerContent className="flex flex-col h-full max-h-screen">
+      <DrawerContent className="flex flex-col h-full max-h-screen ">
         <DrawerHeader className="px-4 border-b">
           <DrawerTitle>Create Task</DrawerTitle>
         </DrawerHeader>
@@ -292,11 +339,13 @@ export default function TableCellCreate({
                                   </SelectTrigger>
 
                                   <SelectContent>
-                                    {Object.keys(SUBDISTRICT_DATA).map((kec) => (
-                                      <SelectItem key={kec} value={kec}>
-                                        {kec}
-                                      </SelectItem>
-                                    ))}
+                                    {Object.keys(SUBDISTRICT_DATA).map(
+                                      (kec) => (
+                                        <SelectItem key={kec} value={kec}>
+                                          {kec}
+                                        </SelectItem>
+                                      ),
+                                    )}
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -355,13 +404,18 @@ export default function TableCellCreate({
 
                               <Input
                                 className="h-9 md:col-span-2"
-                                value={String(val ?? "")}
-                                onChange={(e) =>
-                                  handleChange(
-                                    `baseData.${key}`,
-                                    e.target.value,
-                                  )
-                                }
+                                value={val ?? ""}
+                                onChange={(e) => {
+                                  const rawValue = e.target.value;
+                                  const finalValue =
+                                    rawValue === ""
+                                      ? ""
+                                      : !isNaN(Number(rawValue))
+                                        ? Number(rawValue)
+                                        : rawValue;
+
+                                  handleChange(`baseData.${key}`, finalValue);
+                                }}
                               />
                             </div>
                           );
@@ -513,7 +567,7 @@ export default function TableCellCreate({
                           <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => removeRequestedChange(i)}
+                            onClick={() => removeRequestedChanges(i)}
                           >
                             Hapus
                           </Button>
@@ -548,16 +602,23 @@ export default function TableCellCreate({
                                       <Label className="text-xs text-muted-foreground md:col-span-1">
                                         {meta.label}
                                       </Label>
-
                                       <Input
                                         className="h-9 md:col-span-2"
-                                        value={String(val ?? "")}
-                                        onChange={(e) =>
+                                        value={val ?? ""}
+                                        onChange={(e) => {
+                                          const rawValue = e.target.value;
+                                          const finalValue =
+                                            rawValue === ""
+                                              ? ""
+                                              : !isNaN(Number(rawValue))
+                                                ? Number(rawValue)
+                                                : rawValue;
+
                                           handleChange(
                                             `requestedChanges.${i}.${key}`,
-                                            e.target.value,
-                                          )
-                                        }
+                                            finalValue,
+                                          );
+                                        }}
                                       />
                                     </div>
                                   );
@@ -575,7 +636,7 @@ export default function TableCellCreate({
 
             {activeTab === "docs" && (
               <div className="space-y-8">
-                <Button size="sm" onClick={addAttachment}>
+                <Button size="sm" onClick={addAttachments}>
                   Tambah
                 </Button>
 
@@ -589,7 +650,7 @@ export default function TableCellCreate({
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => removeAttachment(i)}
+                          onClick={() => removeAttachments(i)}
                         >
                           Hapus
                         </Button>
@@ -636,7 +697,10 @@ export default function TableCellCreate({
         </div>
 
         <DrawerFooter className="border-t shrink-0 bg-background z-10">
-          <Button onClick={() => handleCreateTask(form)} disabled={isSubmitting}>
+          <Button
+            onClick={() => handleCreateTask(form)}
+            disabled={isSubmitting}
+          >
             {isSubmitting ? "Loading..." : "Submit"}
           </Button>
           <DrawerClose asChild>

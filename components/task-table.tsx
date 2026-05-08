@@ -46,8 +46,6 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { z } from "zod";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,7 +54,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
@@ -83,11 +80,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreateTaskInput } from "@/validations/task.validation";
-import { TaskSchemaType } from "@/models/task.model";
+import { InitialDataType } from "@/models/task.model";
 
 import TableCellCreate from "./tableCellCreate";
-import TableCellUpdate from "./tableCellUpdate";
 
 function DragHandle({ id }: { id: string }) {
   const { attributes, listeners } = useSortable({
@@ -100,7 +95,7 @@ function DragHandle({ id }: { id: string }) {
       {...listeners}
       variant="ghost"
       size="icon"
-      className="text-muted-foreground size-7 hover:bg-transparent"
+      className="text-muted-foreground size-7 hover:bg-transparent cursor-grab active:cursor-grabbing"
     >
       <IconGripVertical className="text-muted-foreground size-3" />
       <span className="sr-only">Drag to reorder</span>
@@ -108,7 +103,7 @@ function DragHandle({ id }: { id: string }) {
   );
 }
 
-const columns: ColumnDef<TaskSchemaType & { _id: string }>[] = [
+const columns: ColumnDef<InitialDataType>[] = [
   {
     id: "drag",
     header: () => null,
@@ -140,8 +135,6 @@ const columns: ColumnDef<TaskSchemaType & { _id: string }>[] = [
     enableSorting: false,
     enableHiding: false,
   },
-
-  // 🔥 Nopel
   {
     accessorKey: "nopel",
     header: "Nopel",
@@ -152,10 +145,8 @@ const columns: ColumnDef<TaskSchemaType & { _id: string }>[] = [
     ),
     enableHiding: false,
   },
-
-  // 🔥 Service Type
   {
-    accessorKey: "jenis pelayanan",
+    accessorKey: "serviceType",
     header: "Jenis Pelayanan",
     cell: ({ row }) => (
       <Badge variant="outline" className="text-muted-foreground px-1.5">
@@ -163,8 +154,6 @@ const columns: ColumnDef<TaskSchemaType & { _id: string }>[] = [
       </Badge>
     ),
   },
-
-  // 🔥 NOP
   {
     accessorKey: "nop",
     header: "NOP",
@@ -174,10 +163,8 @@ const columns: ColumnDef<TaskSchemaType & { _id: string }>[] = [
       </Badge>
     ),
   },
-
-  // 🔥 NOPEL
   {
-    accessorKey: "nama wp lama",
+    accessorKey: "baseData.taxpayerName",
     header: "Nama WP Lama",
     cell: ({ row }) => (
       <Badge variant="outline" className="text-muted-foreground px-1.5">
@@ -186,7 +173,7 @@ const columns: ColumnDef<TaskSchemaType & { _id: string }>[] = [
     ),
   },
   {
-    accessorKey: "nama wp baru",
+    accessorKey: "requestedChanges",
     header: "Nama WP Baru",
     cell: ({ row }) => {
       const changes = row.original?.requestedChanges || [];
@@ -198,7 +185,7 @@ const columns: ColumnDef<TaskSchemaType & { _id: string }>[] = [
             <TooltipTrigger asChild>
               <Badge className="px-2 py-0.5 cursor-pointer bg-secondary text-secondary-foreground dark:bg-secondary/70 dark:text-white">
                 {mainName || "-"}
-                <p>({row.original?.requestedChanges.length})</p>
+                <span className="ml-1">({changes.length})</span>
               </Badge>
             </TooltipTrigger>
 
@@ -230,7 +217,7 @@ const columns: ColumnDef<TaskSchemaType & { _id: string }>[] = [
                   Tidak ada data
                 </div>
               ) : (
-                <div className="divide-y divide-border">
+                <div className="divide-y divide-border max-h-48 overflow-auto">
                   {changes.map((item, index) => (
                     <div
                       key={index}
@@ -256,7 +243,7 @@ const columns: ColumnDef<TaskSchemaType & { _id: string }>[] = [
     },
   },
   {
-    accessorKey: "kecamatan op",
+    accessorKey: "baseData.taxObjectSubdistrict",
     header: "Kecamatan OP",
     cell: ({ row }) => (
       <Badge variant="outline" className="text-muted-foreground px-1.5">
@@ -265,7 +252,7 @@ const columns: ColumnDef<TaskSchemaType & { _id: string }>[] = [
     ),
   },
   {
-    accessorKey: "desa op",
+    accessorKey: "baseData.taxObjectVillage",
     header: "Desa OP",
     cell: ({ row }) => (
       <Badge variant="outline" className="text-muted-foreground px-1.5">
@@ -273,22 +260,18 @@ const columns: ColumnDef<TaskSchemaType & { _id: string }>[] = [
       </Badge>
     ),
   },
-  // 🔥 Current Stage
   {
-    accessorKey: "tahapan",
+    accessorKey: "currentStage",
     header: "Tahapan",
     cell: ({ row }) => (
       <Badge variant="secondary">{row.original?.currentStage}</Badge>
     ),
   },
-
-  // 🔥 Overall Status
   {
-    accessorKey: "status",
+    accessorKey: "overallStatus",
     header: "Status",
     cell: ({ row }) => {
       const status = row.original?.overallStatus;
-
       const color =
         status === "approved"
           ? "bg-green-500"
@@ -301,10 +284,8 @@ const columns: ColumnDef<TaskSchemaType & { _id: string }>[] = [
       return <Badge className={`text-white ${color}`}>{status}</Badge>;
     },
   },
-
-  // 🔥 Created At
   {
-    accessorKey: "tgl diinput",
+    accessorKey: "createdAt",
     header: "Tgl Diinput",
     cell: ({ row }) => {
       const date = row.original?.createdAt
@@ -322,8 +303,6 @@ const columns: ColumnDef<TaskSchemaType & { _id: string }>[] = [
       );
     },
   },
-
-  // 🔥 Actions (tetap)
   {
     id: "actions",
     cell: () => (
@@ -350,21 +329,24 @@ const columns: ColumnDef<TaskSchemaType & { _id: string }>[] = [
   },
 ];
 
-function DraggableRow({ row }: { row: Row<TaskSchemaType> }) {
+function DraggableRow({ row }: { row: Row<InitialDataType> }) {
   const { transform, transition, setNodeRef, isDragging } = useSortable({
-    id: (row.original as any)?._id,
+    id: row.original?._id,
   });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Translate.toString(transform),
+    transition: transition,
+    opacity: isDragging ? 0.8 : 1,
+    zIndex: isDragging ? 1 : 0,
+    position: "relative",
+  };
 
   return (
     <TableRow
       data-state={row.getIsSelected() && "selected"}
-      data-dragging={isDragging}
       ref={setNodeRef}
-      className="relative z-0 data-[dragging=true]:z-10 data-[dragging=true]:opacity-80"
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition: transition,
-      }}
+      style={style}
     >
       {row.getVisibleCells().map((cell) => (
         <TableCell key={cell.id}>
@@ -375,13 +357,14 @@ function DraggableRow({ row }: { row: Row<TaskSchemaType> }) {
   );
 }
 
-export function TaskTable({ data: initialData }: { data: TaskSchemaType[] }) {
+export function TaskTable({ data: initialData }: { data: InitialDataType[] }) {
   const [openCreate, setOpenCreate] = React.useState(false);
-  const [data, setData] = React.useState(() => initialData);
+  const [data, setData] = React.useState<InitialDataType[]>(initialData);
 
+  const initialDataKey = JSON.stringify(initialData);
   React.useEffect(() => {
     setData(initialData);
-  }, [initialData]);
+  }, [initialDataKey]);
 
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] =
@@ -394,7 +377,7 @@ export function TaskTable({ data: initialData }: { data: TaskSchemaType[] }) {
     pageIndex: 0,
     pageSize: 10,
   });
-  const sortableId = React.useId();
+
   const sensors = useSensors(
     useSensor(MouseSensor, {}),
     useSensor(TouchSensor, {}),
@@ -402,12 +385,12 @@ export function TaskTable({ data: initialData }: { data: TaskSchemaType[] }) {
   );
 
   const dataIds = React.useMemo<UniqueIdentifier[]>(
-    () => data?.map((item: any) => item._id) || [],
+    () => data?.map((item) => item._id) || [],
     [data],
   );
 
-  const table = useReactTable<TaskSchemaType & { _id: string }>({
-    data: data as (TaskSchemaType & { _id: string })[] || [],
+  const table = useReactTable<InitialDataType>({
+    data,
     columns,
     state: {
       sorting,
@@ -416,7 +399,7 @@ export function TaskTable({ data: initialData }: { data: TaskSchemaType[] }) {
       columnFilters,
       pagination,
     },
-    getRowId: (row) => (row as any)?._id,
+    getRowId: (row) => row._id,
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
@@ -433,11 +416,11 @@ export function TaskTable({ data: initialData }: { data: TaskSchemaType[] }) {
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (active && over && active?.id !== over?.id) {
-      setData((data) => {
-        const oldIndex = dataIds.indexOf(active?.id);
-        const newIndex = dataIds.indexOf(over?.id);
-        return arrayMove(data, oldIndex, newIndex);
+    if (active && over && active.id !== over.id) {
+      setData((prev) => {
+        const oldIndex = prev.findIndex((item) => item._id === active.id);
+        const newIndex = prev.findIndex((item) => item._id === over.id);
+        return arrayMove(prev, oldIndex, newIndex);
       });
     }
   }
@@ -453,7 +436,7 @@ export function TaskTable({ data: initialData }: { data: TaskSchemaType[] }) {
         </Label>
         <Select defaultValue="outline">
           <SelectTrigger
-            className="flex w-fit @4xl/main:hidden"
+            className="flex w-fit md:hidden"
             size="sm"
             id="view-selector"
           >
@@ -466,13 +449,19 @@ export function TaskTable({ data: initialData }: { data: TaskSchemaType[] }) {
             <SelectItem value="focus-documents">Focus Documents</SelectItem>
           </SelectContent>
         </Select>
-        <TabsList className="**:data-[slot=badge]:bg-muted-foreground/30 hidden **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:px-1 @4xl/main:flex">
+        <TabsList className="hidden md:flex">
           <TabsTrigger value="outline">Outline</TabsTrigger>
           <TabsTrigger value="past-performance">
-            Past Performance <Badge variant="secondary">3</Badge>
+            Past Performance{" "}
+            <Badge variant="secondary" className="ml-1">
+              3
+            </Badge>
           </TabsTrigger>
           <TabsTrigger value="key-personnel">
-            Key Personnel <Badge variant="secondary">2</Badge>
+            Key Personnel{" "}
+            <Badge variant="secondary" className="ml-1">
+              2
+            </Badge>
           </TabsTrigger>
           <TabsTrigger value="focus-documents">Focus Documents</TabsTrigger>
         </TabsList>
@@ -480,10 +469,10 @@ export function TaskTable({ data: initialData }: { data: TaskSchemaType[] }) {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <IconLayoutColumns />
-                <span className="hidden lg:inline">Customize Columns</span>
-                <span className="lg:hidden">Columns</span>
-                <IconChevronDown />
+                <IconLayoutColumns size={16} />
+                <span className="hidden lg:inline ml-2">Customize Columns</span>
+                <span className="lg:hidden ml-2">Columns</span>
+                <IconChevronDown size={14} className="ml-1" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
@@ -515,8 +504,8 @@ export function TaskTable({ data: initialData }: { data: TaskSchemaType[] }) {
             size="sm"
             onClick={() => setOpenCreate(true)}
           >
-            <IconPlus />
-            <span className="hidden lg:inline">Add Section</span>
+            <IconPlus size={16} />
+            <span className="hidden lg:inline ml-2">Add Section</span>
           </Button>
           <TableCellCreate open={openCreate} onOpenChange={setOpenCreate} />
         </div>
@@ -531,7 +520,6 @@ export function TaskTable({ data: initialData }: { data: TaskSchemaType[] }) {
             modifiers={[restrictToVerticalAxis]}
             onDragEnd={handleDragEnd}
             sensors={sensors}
-            id={sortableId}
           >
             <Table>
               <TableHeader className="bg-muted sticky top-0 z-10">
@@ -552,14 +540,14 @@ export function TaskTable({ data: initialData }: { data: TaskSchemaType[] }) {
                   </TableRow>
                 ))}
               </TableHeader>
-              <TableBody className="**:data-[slot=table-cell]:first:w-8">
+              <TableBody>
                 {table.getRowModel().rows.length ? (
                   <SortableContext
                     items={dataIds}
                     strategy={verticalListSortingStrategy}
                   >
                     {table.getRowModel().rows.map((row) => (
-                      <DraggableRow key={row?.id} row={row} />
+                      <DraggableRow key={row.id} row={row} />
                     ))}
                   </SortableContext>
                 ) : (
@@ -576,7 +564,7 @@ export function TaskTable({ data: initialData }: { data: TaskSchemaType[] }) {
             </Table>
           </DndContext>
         </div>
-        <div className="flex items-center justify-between px-4">
+        <div className="flex items-center justify-between px-4 py-4">
           <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
             {table.getFilteredSelectedRowModel().rows.length} of{" "}
             {table.getFilteredRowModel().rows.length} row(s) selected.
@@ -618,7 +606,7 @@ export function TaskTable({ data: initialData }: { data: TaskSchemaType[] }) {
                 disabled={!table.getCanPreviousPage()}
               >
                 <span className="sr-only">Go to first page</span>
-                <IconChevronsLeft />
+                <IconChevronsLeft size={16} />
               </Button>
               <Button
                 variant="outline"
@@ -628,7 +616,7 @@ export function TaskTable({ data: initialData }: { data: TaskSchemaType[] }) {
                 disabled={!table.getCanPreviousPage()}
               >
                 <span className="sr-only">Go to previous page</span>
-                <IconChevronLeft />
+                <IconChevronLeft size={16} />
               </Button>
               <Button
                 variant="outline"
@@ -638,7 +626,7 @@ export function TaskTable({ data: initialData }: { data: TaskSchemaType[] }) {
                 disabled={!table.getCanNextPage()}
               >
                 <span className="sr-only">Go to next page</span>
-                <IconChevronRight />
+                <IconChevronRight size={16} />
               </Button>
               <Button
                 variant="outline"
@@ -648,7 +636,7 @@ export function TaskTable({ data: initialData }: { data: TaskSchemaType[] }) {
                 disabled={!table.getCanNextPage()}
               >
                 <span className="sr-only">Go to last page</span>
-                <IconChevronsRight />
+                <IconChevronsRight size={16} />
               </Button>
             </div>
           </div>

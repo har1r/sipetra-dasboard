@@ -99,7 +99,7 @@ export const SUBDISTRICT_DATA = {
 
 export const baseDataFieldMeta: Record<
   string,
-  { label: string; section: "wp" | "op" | "size" }
+  { label: string | number; section: "wp" | "op" | "size" }
 > = {
   taxpayerName: { label: "Nama", section: "wp" },
   taxpayerAddress: { label: "Alamat", section: "wp" },
@@ -119,45 +119,45 @@ export const requestedDataFieldMeta: Record<
   { label: string; section: "op" }
 > = {
   taxObjectAddress: {
-    label: "Alamat OP Baru",
+    label: "Alamat OP",
     section: "op",
   },
   taxObjectSubdistrict: {
-    label: "Kecamatan OP Baru",
+    label: "Kecamatan OP",
     section: "op",
   },
   taxObjectVillage: {
-    label: "Desa OP Baru",
+    label: "Desa OP",
     section: "op",
   },
 };
 
 export const requestedChangesFieldMeta: Record<
   string,
-  { label: string; section: "wp" | "size" | "info" }
+  { label: string | number; section: "wp" | "size" | "info" }
 > = {
   taxpayerName: {
-    label: "Nama WP Baru",
+    label: "Nama WP",
     section: "wp",
   },
   taxpayerAddress: {
-    label: "Alamat WP Baru",
+    label: "Alamat WP",
     section: "wp",
   },
   taxpayerSubdistrict: {
-    label: "Kecamatan WP Baru",
+    label: "Kecamatan WP",
     section: "wp",
   },
   taxpayerVillage: {
-    label: "Desa WP Baru",
+    label: "Desa WP",
     section: "wp",
   },
   landArea: {
-    label: "Luas Tanah Baru",
+    label: "Luas Tanah",
     section: "size",
   },
   buildingArea: {
-    label: "Luas Bangunan Baru",
+    label: "Luas Bangunan",
     section: "size",
   },
 
